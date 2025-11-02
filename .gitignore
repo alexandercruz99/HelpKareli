@@ -1,0 +1,39 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Environment variables
+.env
+.env.*
+
+# Build output
+dist/
+build/
+coverage/
+
+# Logs
+logs/
+*.log
+*.out
+*.err
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+
+# Python virtual environment (si estás usando uno en backend)
+venv/
+__pycache__/
+*.pyc
+
+# Misc
+*.bak
+*.tmp

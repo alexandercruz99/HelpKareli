@@ -60,10 +60,17 @@
             backdrop-filter: blur(10px);
             background: rgba(255, 255, 255, 0.1);
         }
+        .password-strength {
+            height: 4px;
+            transition: all 0.3s ease;
+        }
+        /* Para mostrar correctamente los saltos de línea en los errores */
+        #error-message {
+            white-space: pre-line;
+        }
     </style>
 </head>
 <body class="bg-white dark:bg-gray-900 transition-colors duration-300 min-h-screen">
-    <!-- Navbar -->
     <nav class="fixed w-full z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
@@ -79,7 +86,6 @@
                 </div>
                 
                 <div class="flex items-center space-x-4">
-                    <!-- Botón Dark/Light -->
                     <button id="theme-toggle" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                         <i class="fas fa-moon text-gray-600 dark:text-yellow-400" id="theme-icon"></i>
                     </button>
@@ -97,10 +103,8 @@
         </div>
     </nav>
 
-    <!-- Main Content -->
     <div class="min-h-screen flex items-center justify-center p-4 pt-20">
         <div class="max-w-2xl w-full animate-fade-in">
-            <!-- Logo Header -->
             <div class="text-center mb-8">
                 <div class="w-16 h-16 bg-gradient-to-r from-secondary-600 to-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                     <i class="fas fa-user-plus text-white text-2xl"></i>
@@ -113,9 +117,7 @@
                 </p>
             </div>
 
-            <!-- Register Card -->
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-8">
-                <!-- Progress Steps -->
                 <div class="flex items-center justify-center mb-8">
                     <div class="flex items-center">
                         <div class="w-8 h-8 bg-gradient-to-r from-secondary-600 to-primary-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
@@ -132,17 +134,14 @@
                     </div>
                 </div>
 
-                <!-- Alerta de error -->
                 <div id="error-alert" class="hidden mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg animate-slide-in">
                     <div class="flex items-start gap-3">
                         <i class="fas fa-exclamation-circle text-red-600 dark:text-red-400 mt-0.5"></i>
-                        <p id="error-message" class="text-sm text-red-800 dark:text-red-200"></p>
+                        <div id="error-message" class="text-sm text-red-800 dark:text-red-200"></div>
                     </div>
                 </div>
 
-                <!-- Formulario -->
                 <form id="register-form" class="space-y-6">
-                    <!-- Grid para nombre y apellidos -->
                     <div class="grid md:grid-cols-2 gap-6">
                         <div>
                             <label for="nombre" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -164,7 +163,7 @@
                         </div>
 
                         <div>
-                            <label for="primerApellido" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label for="primer_apellido" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Primer Apellido <span class="text-red-500">*</span>
                             </label>
                             <div class="relative">
@@ -173,8 +172,8 @@
                                 </div>
                                 <input
                                     type="text"
-                                    id="primerApellido"
-                                    name="primerApellido"
+                                    id="primer_apellido"
+                                    name="primer_apellido"
                                     required
                                     class="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-colors"
                                     placeholder="Pérez"
@@ -184,7 +183,7 @@
                     </div>
 
                     <div>
-                        <label for="segundoApellido" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label for="segundo_apellido" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Segundo Apellido <span class="text-gray-400 text-sm">(opcional)</span>
                         </label>
                         <div class="relative">
@@ -193,8 +192,8 @@
                             </div>
                             <input
                                 type="text"
-                                id="segundoApellido"
-                                name="segundoApellido"
+                                id="segundo_apellido"
+                                name="segundo_apellido"
                                 class="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-colors"
                                 placeholder="Martínez"
                             />
@@ -246,9 +245,16 @@
                                     <i id="eye-icon-1" class="fas fa-eye"></i>
                                 </button>
                             </div>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                Mínimo 8 caracteres
-                            </p>
+                            
+                            <div class="mt-2 space-y-1">
+                                <div class="flex gap-1">
+                                    <div id="strength-1" class="password-strength flex-1 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                                    <div id="strength-2" class="password-strength flex-1 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                                    <div id="strength-3" class="password-strength flex-1 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                                    <div id="strength-4" class="password-strength flex-1 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                                </div>
+                                <p id="password-feedback" class="text-xs text-gray-500 dark:text-gray-400"></p>
+                            </div>
                         </div>
 
                         <div>
@@ -275,11 +281,16 @@
                                     <i id="eye-icon-2" class="fas fa-eye"></i>
                                 </button>
                             </div>
+                            <div id="password-match" class="mt-2 hidden">
+                                <p class="text-xs text-green-600 dark:text-green-400">
+                                    <i class="fas fa-check mr-1"></i>Las contraseñas coinciden
+                                </p>
+                            </div>
                         </div>
                     </div>
 
                     <div>
-                        <label for="idioma" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label for="idioma_aprendizaje" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Idioma de aprendizaje <span class="text-red-500">*</span>
                         </label>
                         <div class="relative">
@@ -287,16 +298,16 @@
                                 <i class="fas fa-globe text-gray-400"></i>
                             </div>
                             <select
-                                id="idioma"
-                                name="idioma"
+                                id="idioma_aprendizaje"
+                                name="idioma_aprendizaje"
                                 required
                                 class="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white appearance-none transition-colors"
                             >
                                 <option value="">Selecciona un idioma</option>
-                                <option value="inglés">🇬🇧 Inglés</option>
-                                <option value="francés">🇫🇷 Francés</option>
-                                <option value="alemán">🇩🇪 Alemán</option>
-                                <option value="italiano">🇮🇹 Italiano</option>
+                                <option value="Inglés">🇬🇧 Inglés</option>
+                                <option value="Francés">🇫🇷 Francés</option>
+                                <option value="Alemán">🇩🇪 Alemán</option>
+                                <option value="Italiano">🇮🇹 Italiano</option>
                             </select>
                             <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                                 <i class="fas fa-chevron-down text-gray-400"></i>
@@ -304,16 +315,15 @@
                         </div>
                     </div>
 
-                    <!-- Info Box -->
                     <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
                         <div class="flex items-start gap-3">
                             <i class="fas fa-info-circle text-blue-600 dark:text-blue-400 mt-0.5"></i>
                             <div>
                                 <p class="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">
-                                    Próximo paso: Evaluación de nivel
+                                    Próximo paso: Verificación de email
                                 </p>
                                 <p class="text-xs text-blue-700 dark:text-blue-300">
-                                    Después del registro podrás realizar una evaluación para determinar tu nivel o seleccionarlo manualmente.
+                                    Después del registro, verifica tu email con el código que te enviaremos. Luego podrás realizar tu evaluación de nivel.
                                 </p>
                             </div>
                         </div>
@@ -322,7 +332,7 @@
                     <button
                         type="submit"
                         id="submit-btn"
-                        class="w-full px-4 py-4 bg-gradient-to-r from-secondary-600 to-primary-600 text-white rounded-xl font-semibold hover:from-secondary-700 hover:to-primary-700 transform hover:-translate-y-0.5 transition-all duration-200 shadow-lg hover:shadow-xl"
+                        class="w-full px-4 py-4 bg-gradient-to-r from-secondary-600 to-primary-600 text-white rounded-xl font-semibold hover:from-secondary-700 hover:to-primary-700 transform hover:-translate-y-0.5 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     >
                         <span class="flex items-center justify-center">
                             <i class="fas fa-user-plus mr-2"></i>
@@ -339,7 +349,6 @@
                 </div>
             </div>
 
-            <!-- Additional Info -->
             <div class="mt-8 text-center">
                 <div class="grid grid-cols-3 gap-4 text-xs text-gray-500 dark:text-gray-400">
                     <div class="flex items-center justify-center gap-1">
@@ -359,19 +368,18 @@
         </div>
     </div>
 
-    <!-- Toast Container -->
     <div id="toast-container" class="fixed top-20 right-4 z-50 space-y-2 max-w-sm w-full"></div>
 
-    <script type="module">
+    <script>
         // Elementos DOM
         const registerForm = document.getElementById('register-form');
         const nombreInput = document.getElementById('nombre');
-        const primerApellidoInput = document.getElementById('primerApellido');
-        const segundoApellidoInput = document.getElementById('segundoApellido');
+        const primerApellidoInput = document.getElementById('primer_apellido');
+        const segundoApellidoInput = document.getElementById('segundo_apellido');
         const correoInput = document.getElementById('correo');
         const passwordInput = document.getElementById('password');
         const confirmPasswordInput = document.getElementById('confirmPassword');
-        const idiomaSelect = document.getElementById('idioma');
+        const idiomaSelect = document.getElementById('idioma_aprendizaje');
         const submitBtn = document.getElementById('submit-btn');
         const errorAlert = document.getElementById('error-alert');
         const errorMessage = document.getElementById('error-message');
@@ -379,6 +387,14 @@
         const toggleConfirmPassword = document.getElementById('toggle-confirm-password');
         const eyeIcon1 = document.getElementById('eye-icon-1');
         const eyeIcon2 = document.getElementById('eye-icon-2');
+        const passwordMatch = document.getElementById('password-match');
+        const strengthBars = [
+            document.getElementById('strength-1'),
+            document.getElementById('strength-2'),
+            document.getElementById('strength-3'),
+            document.getElementById('strength-4')
+        ];
+        const passwordFeedback = document.getElementById('password-feedback');
 
         // Función para mostrar toast
         function showToast(message, type = 'info') {
@@ -417,13 +433,78 @@
 
         // Mostrar error
         function showError(msg) {
-            errorMessage.textContent = msg;
+            errorMessage.innerHTML = msg; // Usar innerHTML para resetear
             errorAlert.classList.remove('hidden');
+            errorAlert.classList.add('animate-slide-in');
         }
 
         // Ocultar error
         function hideError() {
+            errorMessage.innerHTML = ''; // Limpiar contenido
             errorAlert.classList.add('hidden');
+        }
+
+        // Mostrar error con formato mejorado
+        function mostrarErrorDetallado(titulo, errores) {
+            hideError();
+        
+            const errorDiv = document.getElementById('error-alert');
+            const errorMsg = document.getElementById('error-message');
+        
+            // Crear lista de errores
+            let html = `<strong class="block">${titulo}</strong><ul class="mt-2 ml-4 list-disc list-inside text-sm">`;
+            errores.forEach(err => {
+                html += `<li><strong>${err.campo}</strong>: ${err.mensaje}</li>`;
+            });
+            html += `</ul>`;
+        
+            errorMsg.innerHTML = html;
+            errorDiv.classList.remove('hidden');
+        }
+
+        // Evaluar fortaleza de contraseña
+        function evaluatePasswordStrength(password) {
+            let score = 0;
+            let feedback = '';
+
+            if (password.length >= 8) score++;
+            if (password.match(/[a-z]/) && password.match(/[A-Z]/)) score++;
+            if (password.match(/\d/)) score++;
+            if (password.match(/[^a-zA-Z\d]/)) score++;
+
+            // Actualizar barras de fortaleza
+            strengthBars.forEach((bar, index) => {
+                if (index < score) {
+                    if (score === 1) bar.className = 'password-strength flex-1 bg-red-500 rounded';
+                    else if (score === 2) bar.className = 'password-strength flex-1 bg-orange-500 rounded';
+                    else if (score === 3) bar.className = 'password-strength flex-1 bg-yellow-500 rounded';
+                    else if (score === 4) bar.className = 'password-strength flex-1 bg-green-500 rounded';
+                } else {
+                    bar.className = 'password-strength flex-1 bg-gray-200 dark:bg-gray-700 rounded';
+                }
+            });
+
+            // Actualizar feedback
+            switch(score) {
+                case 0:
+                    feedback = 'Muy débil';
+                    break;
+                case 1:
+                    feedback = 'Débil';
+                    break;
+                case 2:
+                    feedback = 'Regular';
+                    break;
+                case 3:
+                    feedback = 'Buena';
+                    break;
+                case 4:
+                    feedback = 'Excelente';
+                    break;
+            }
+
+            passwordFeedback.textContent = feedback;
+            passwordFeedback.className = `text-xs ${score === 0 ? 'text-red-600' : score === 1 ? 'text-orange-600' : score === 2 ? 'text-yellow-600' : score === 3 ? 'text-blue-600' : 'text-green-600'} dark:text-gray-400`;
         }
 
         // Toggle password visibility
@@ -441,36 +522,69 @@
 
         // Validar contraseñas coinciden
         function validatePasswords() {
-            if (passwordInput.value && confirmPasswordInput.value && passwordInput.value !== confirmPasswordInput.value) {
-                confirmPasswordInput.setCustomValidity('Las contraseñas no coinciden');
-                confirmPasswordInput.classList.add('border-red-500');
+            if (passwordInput.value && confirmPasswordInput.value) {
+                if (passwordInput.value === confirmPasswordInput.value) {
+                    confirmPasswordInput.setCustomValidity('');
+                    confirmPasswordInput.classList.remove('border-red-500');
+                    confirmPasswordInput.classList.add('border-green-500');
+                    passwordMatch.classList.remove('hidden');
+                } else {
+                    confirmPasswordInput.setCustomValidity('Las contraseñas no coinciden');
+                    confirmPasswordInput.classList.add('border-red-500');
+                    confirmPasswordInput.classList.remove('border-green-500');
+                    passwordMatch.classList.add('hidden');
+                }
             } else {
                 confirmPasswordInput.setCustomValidity('');
-                confirmPasswordInput.classList.remove('border-red-500');
+                confirmPasswordInput.classList.remove('border-red-500', 'border-green-500');
+                passwordMatch.classList.add('hidden');
             }
         }
 
-        passwordInput.addEventListener('input', validatePasswords);
+        // Event listeners para validación en tiempo real
+        passwordInput.addEventListener('input', function() {
+            evaluatePasswordStrength(this.value);
+            validatePasswords();
+        });
+
         confirmPasswordInput.addEventListener('input', validatePasswords);
 
-        // Submit form
-        registerForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // Validar formulario antes de enviar
+        function validateForm() {
+            let isValid = true;
             hideError();
 
             // Validar contraseñas
             if (passwordInput.value !== confirmPasswordInput.value) {
                 showError('Las contraseñas no coinciden');
-                return;
+                isValid = false;
             }
 
             if (passwordInput.value.length < 8) {
                 showError('La contraseña debe tener al menos 8 caracteres');
-                return;
+                isValid = false;
             }
 
             if (!idiomaSelect.value) {
                 showError('Por favor selecciona un idioma de aprendizaje');
+                isValid = false;
+            }
+
+            // Validar email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(correoInput.value)) {
+                showError('Por favor ingresa un email válido');
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        // Submit form
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!validateForm()) {
                 return;
             }
 
@@ -478,51 +592,91 @@
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creando cuenta...';
 
             try {
-                const res = await fetch('http://localhost:5000/api/auth/registro', {
+                const userData = {
+                    nombre: nombreInput.value.trim(),
+                    primer_apellido: primerApellidoInput.value.trim(),
+                    segundo_apellido: segundoApellidoInput.value.trim() || '', // ✅ String vacío
+                    correo: correoInput.value.trim(),
+                    password: passwordInput.value,
+                    rol: 'alumno',
+                    idioma: idiomaSelect.value,
+                    nivel_actual: 'A1'
+                };
+
+                console.log('Enviando datos:', userData);
+
+                const response = await fetch('http://localhost:5000/api/auth/registro', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        nombre: nombreInput.value,
-                        primer_apellido: primerApellidoInput.value,
-                        segundo_apellido: segundoApellidoInput.value || '',
-                        correo: correoInput.value,
-                        password: passwordInput.value,
-                        idioma: idiomaSelect.value,
-                        nivel_actual: 'A1' // Por defecto, se asignará después
-                    })
+                    headers: { 
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userData)
                 });
 
-                const data = await res.json();
+                const data = await response.json();
 
-                if (!res.ok) {
-                    throw new Error(data.error || `Error ${res.status}`);
+                if (!response.ok) {
+                    // Si hay errores de validación, lanzamos un error con detalles
+                    if (data.errores && data.errores.length > 0) {
+                        const err = new Error(data.mensaje || 'Datos inválidos');
+                        err.esValidacion = true; // Flag para el catch block
+                        err.titulo = 'Errores de validación';
+                        err.detalles = data.errores;
+                        throw err; 
+                    }
+                    // Si no, lanzamos un error genérico
+                    throw new Error(data.error || 'Error al registrar usuario');
                 }
 
-                // Guardar correo e idioma en localStorage para siguiente paso
-                localStorage.setItem('correo', correoInput.value);
-                localStorage.setItem('idioma', idiomaSelect.value);
+                // Guardar datos para siguiente paso
+                localStorage.setItem('correo', correoInput.value); 
+                localStorage.setItem('idioma', idiomaSelect.value); 
 
-                showToast('✅ Cuenta creada exitosamente. Redirigiendo...', 'success');
+                showToast('✅ Cuenta creada exitosamente. Revisa tu email para verificar tu cuenta.', 'success');
 
-                // Redirigir a verificación de email
+                // Redirigir a verificación de email después de 2 segundos
                 setTimeout(() => {
-                    window.location.href = 'verificar-email.html';
-                }, 1500);
+                    window.location.href = `verificar-email.html?email=${encodeURIComponent(correoInput.value)}`; 
+                }, 2000);
 
             } catch (error) {
-                let errorMsg = error.message || 'Error desconocido';
-                if (error.message === 'Failed to fetch') {
-                    errorMsg = 'No se pudo conectar al servidor. Intenta más tarde.';
+                console.error('Error en registro:', error);
+
+                // Si hay errores de validación detallados
+                if (error.esValidacion) {
+                    mostrarErrorDetallado(error.titulo, error.detalles);
+                    showToast(`❌ ${error.message}`, 'error'); // Still show a simple toast
+                } else {
+                    // Lógica genérica
+                    let errorMsg = error.message || 'Error desconocido al crear la cuenta';
+                    if (error.message.includes('Failed to fetch')) {
+                        errorMsg = 'No se pudo conectar al servidor. Verifica que el servidor esté ejecutándose.';
+                    } else if (error.message.includes('409') || error.message.includes('El correo electrónico ya está registrado')) {
+                        errorMsg = 'El correo electrónico ya está registrado.';
+                    }
+                    showError(errorMsg); // Use the simple error function
+                    showToast(`❌ ${errorMsg}`, 'error');
                 }
-                showError(errorMsg);
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<i class="fas fa-user-plus mr-2"></i>Crear Cuenta';
             }
         });
+
+        // Validación en tiempo real para campos requeridos
+        const requiredFields = [nombreInput, primerApellidoInput, correoInput, passwordInput, confirmPasswordInput, idiomaSelect];
+        
+        requiredFields.forEach(field => {
+            field.addEventListener('blur', function() {
+                if (!this.value && this.hasAttribute('required')) {
+                    this.classList.add('border-red-500');
+                } else {
+                    this.classList.remove('border-red-500');
+                }
+            });
+        });
     </script>
 
-    <!-- Script para el tema oscuro/claro -->
     <script>
         // Toggle tema oscuro/claro
         const themeToggle = document.getElementById('theme-toggle');

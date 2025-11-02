@@ -13,7 +13,6 @@
     </script>
 </head>
 <body class="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 min-h-screen transition-colors duration-300">
-    <!-- Toggle de Modo Oscuro -->
     <div class="fixed top-4 right-4 z-40">
         <button id="theme-toggle" class="p-2 rounded-full bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all">
             <i class="fas fa-moon text-gray-700 dark:text-yellow-400" id="theme-icon"></i>
@@ -22,7 +21,6 @@
 
     <div class="min-h-screen flex items-center justify-center p-4">
         <div class="max-w-4xl w-full">
-            <!-- Logo -->
             <div class="text-center mb-8">
                 <h1 class="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2">
                     SpeakLexi
@@ -30,12 +28,10 @@
                 <p id="subtitle" class="text-gray-600 dark:text-gray-300">Asigna tu nivel</p>
             </div>
 
-            <!-- Contenedor dinámico -->
             <div id="content-container"></div>
         </div>
     </div>
 
-    <!-- Toast Container -->
     <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
 
     <script type="module">
@@ -162,7 +158,7 @@
                             <div class="text-center">
                                 <h3 class="text-lg font-semibold dark:text-white">Seleccionar Nivel</h3>
                                 <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                                    Ya conozco mi nivel y quiero elegirlo manualmente
+                                    Ya conozco mi nivel y quiero elegirlo manually
                                 </p>
                             </div>
                         </button>
@@ -341,40 +337,32 @@
 
         async function updateLevel(nivel) {
             const correo = localStorage.getItem('correo');
-
+            const idioma = localStorage.getItem('idioma') || 'Inglés';
             if (!correo) {
                 showToast('No se encontró el correo del usuario', 'error');
                 return;
             }
-
             const confirmBtn = document.querySelector('button[id^="confirm"]');
             confirmBtn.disabled = true;
             confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Asignando nivel...';
-
             try {
-                const res = await fetch('http://localhost:5000/api/usuario/actualizar-nivel', {
+                const res = await fetch('http://localhost:5000/api/auth/actualizar-nivel', {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ correo, nivel, idioma })
                 });
-
                 const data = await res.json();
-
                 if (!res.ok) {
                     throw new Error(data.error || 'Error al actualizar nivel');
                 }
-
                 showToast(`✅ Nivel ${nivel} asignado correctamente`, 'success');
-
                 // Limpiar localStorage
                 localStorage.removeItem('correo');
                 localStorage.removeItem('idioma');
-
                 // Redirigir a login
                 setTimeout(() => {
-                    window.location.href = 'login.html';
+                    window.location.href = '/pages/auth/login.html';
                 }, 1500);
-
             } catch (error) {
                 showToast(error.message, 'error');
                 confirmBtn.disabled = false;

@@ -67,7 +67,6 @@
     </style>
 </head>
 <body class="bg-white dark:bg-gray-900 transition-colors duration-300 min-h-screen">
-    <!-- Navbar -->
     <nav class="fixed w-full z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
@@ -83,7 +82,6 @@
                 </div>
                 
                 <div class="flex items-center space-x-4">
-                    <!-- Botón Dark/Light -->
                     <button id="theme-toggle" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                         <i class="fas fa-moon text-gray-600 dark:text-yellow-400" id="theme-icon"></i>
                     </button>
@@ -101,10 +99,8 @@
         </div>
     </nav>
 
-    <!-- Main Content -->
     <div class="min-h-screen flex items-center justify-center p-4 pt-20">
         <div class="max-w-md w-full animate-fade-in">
-            <!-- Logo Header -->
             <div class="text-center mb-8">
                 <div class="w-20 h-20 bg-gradient-to-r from-secondary-600 to-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg animate-pulse-slow">
                     <i class="fas fa-envelope text-white text-3xl"></i>
@@ -117,7 +113,6 @@
                 </p>
             </div>
 
-            <!-- Progress Steps -->
             <div class="flex items-center justify-center mb-8">
                 <div class="flex items-center">
                     <div class="w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-400 text-sm font-bold">
@@ -134,7 +129,6 @@
                 </div>
             </div>
 
-            <!-- Verification Card -->
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-8">
                 <div class="text-center mb-6">
                     <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">
@@ -148,7 +142,6 @@
                     </div>
                 </div>
 
-                <!-- Alerta de error -->
                 <div id="error-alert" class="hidden mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg animate-slide-in">
                     <div class="flex items-start gap-3">
                         <i class="fas fa-exclamation-circle text-red-600 dark:text-red-400 mt-0.5"></i>
@@ -156,7 +149,6 @@
                     </div>
                 </div>
 
-                <!-- Formulario de código -->
                 <form id="verify-form" class="space-y-6">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 text-center">
@@ -204,7 +196,6 @@
                 </div>
             </div>
 
-            <!-- Additional Info -->
             <div class="mt-8 text-center">
                 <div class="grid grid-cols-3 gap-4 text-xs text-gray-500 dark:text-gray-400">
                     <div class="flex items-center justify-center gap-1">
@@ -224,7 +215,6 @@
         </div>
     </div>
 
-    <!-- Toast Container -->
     <div id="toast-container" class="fixed top-20 right-4 z-50 space-y-2 max-w-sm w-full"></div>
 
     <script type="module">
@@ -408,7 +398,7 @@
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Verificando...';
 
             try {
-                const res = await fetch('http://localhost:5000/api/auth/verificar-email', {
+                const res = await fetch('http://localhost:5000/api/auth/verificar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ correo: email, codigo: code })
@@ -428,7 +418,7 @@
 
                 // Redirigir a asignar nivel
                 setTimeout(() => {
-                    window.location.href = 'asignar-nivel.html';
+                    window.location.href = '/pages/onboarding/asignar-nivel.html';
                 }, 1500);
 
             } catch (error) {
@@ -448,7 +438,7 @@
             resendBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Reenviando...';
 
             try {
-                const res = await fetch('http://localhost:5000/api/auth/reenviar-codigo', {
+                const res = await fetch('http://localhost:5000/api/auth/reenviar-verificacion', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ correo: email })
@@ -478,7 +468,6 @@
         });
     </script>
 
-    <!-- Script para el tema oscuro/claro -->
     <script>
         // Toggle tema oscuro/claro
         const themeToggle = document.getElementById('theme-toggle');

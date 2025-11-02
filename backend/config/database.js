@@ -1,9 +1,8 @@
-// ==========================================================
-// config/database.js - Configuración de MySQL - CORREGIDO
-// ==========================================================
+// backend/config/database.js
 
 const mysql = require('mysql2/promise');
 
+// Configuración del pool de conexiones (sin opciones que causan advertencias)
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT) || 3306,
@@ -13,19 +12,16 @@ const dbConfig = {
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  acquireTimeout: 60000,
-  timeout: 60000,
-  reconnect: true
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0
 };
 
 // Crear pool de conexiones
 const pool = mysql.createPool(dbConfig);
 
-// ==========================================================
-// FUNCIONES DE CONEXIÓN
-// ==========================================================
-
-// Probar conexión
+/**
+ * Probar conexión a la base de datos
+ */
 async function testConnection() {
   try {
     const connection = await pool.getConnection();
@@ -38,7 +34,9 @@ async function testConnection() {
   }
 }
 
-// Ejecutar consultas simples
+/**
+ * Ejecutar consulta SQL
+ */
 async function query(sql, params = []) {
   let connection;
   try {
@@ -47,8 +45,6 @@ async function query(sql, params = []) {
     return results;
   } catch (error) {
     console.error('❌ Error en consulta SQL:', error.message);
-    console.error('📝 Consulta:', sql);
-    console.error('🔢 Parámetros:', params);
     throw error;
   } finally {
     if (connection) {
@@ -57,11 +53,12 @@ async function query(sql, params = []) {
   }
 }
 
-// ⭐ MÉTODO NUEVO: Obtener conexión para transacciones
+/**
+ * Obtener conexión del pool
+ */
 async function getConnection() {
   try {
     const connection = await pool.getConnection();
-    console.log('🔗 Conexión obtenida del pool');
     return connection;
   } catch (error) {
     console.error('❌ Error obteniendo conexión:', error.message);
@@ -69,55 +66,52 @@ async function getConnection() {
   }
 }
 
-// ==========================================================
-// FUNCIONES DE TRANSACCIÓN (UTILIDADES)
-// ==========================================================
-
-// Iniciar una transacción
+/**
+ * Iniciar transacción
+ */
 async function beginTransaction(connection) {
   try {
     await connection.execute('START TRANSACTION');
-    console.log('🔄 Transacción iniciada');
   } catch (error) {
     console.error('❌ Error iniciando transacción:', error.message);
     throw error;
   }
 }
 
-// Confirmar transacción
+/**
+ * Confirmar transacción
+ */
 async function commitTransaction(connection) {
   try {
     await connection.execute('COMMIT');
-    console.log('✅ Transacción confirmada');
   } catch (error) {
     console.error('❌ Error confirmando transacción:', error.message);
     throw error;
   }
 }
 
-// Revertir transacción
+/**
+ * Revertir transacción
+ */
 async function rollbackTransaction(connection) {
   try {
     await connection.execute('ROLLBACK');
-    console.log('↩️ Transacción revertida');
   } catch (error) {
     console.error('❌ Error revertiendo transacción:', error.message);
     throw error;
   }
 }
 
-// ==========================================================
-// FUNCIÓN DE INICIALIZACIÓN (OPCIONAL)
-// ==========================================================
-
+/**
+ * Inicializar base de datos
+ */
 async function initializeDatabase() {
   try {
     const isConnected = await testConnection();
     if (!isConnected) {
       throw new Error('No se pudo conectar a la base de datos');
     }
-
-    console.log('📊 Base de datos inicializada correctamente');
+    console.log('✅ Base de datos inicializada correctamente');
     return true;
   } catch (error) {
     console.error('❌ Error inicializando base de datos:', error.message);
@@ -125,17 +119,13 @@ async function initializeDatabase() {
   }
 }
 
-// ==========================================================
-// EXPORTAR
-// ==========================================================
-
 module.exports = {
   pool,
   query,
-  getConnection,           // ⭐ NUEVO - Para transacciones
-  beginTransaction,        // ⭐ NUEVO - Utilidades
-  commitTransaction,       // ⭐ NUEVO
-  rollbackTransaction,     // ⭐ NUEVO
+  getConnection,
+  beginTransaction,
+  commitTransaction,
+  rollbackTransaction,
   testConnection,
-  initializeDatabase       // ⭐ NUEVO - Para inicializar al arrancar
+  initializeDatabase
 };

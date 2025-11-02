@@ -1,43 +1,40 @@
-// ==========================================================
-// middleware/auth.js - Middleware de autenticación JWT
-// ==========================================================
-
-const jwt = require('jsonwebtoken');
-const { query } = require('../config/database');
+const { verificarToken } = require('../config/jwt');
+const database = require('../config/database');
 
 // Verificar token JWT
 const authenticateToken = async (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-
-  if (!token) {
-    return res.status(401).json({
-      error: 'Token de acceso requerido'
-    });
-  }
-
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({
+        error: 'Token de acceso requerido'
+      });
+    }
+
+    const decoded = verificarToken(token);
     
     // Verificar que el usuario aún existe en la base de datos
-    const user = await query(
-      'SELECT id, correo, nombre, rol, estado FROM usuarios WHERE id = ?',
-      [decoded.userId]
+    const [users] = await database.query(
+      `SELECT id, correo, nombre, primer_apellido, rol, estado_cuenta 
+       FROM usuarios WHERE id = ?`,
+      [decoded.id]
     );
 
-    if (user.length === 0) {
+    if (users.length === 0) {
       return res.status(401).json({
         error: 'Usuario no encontrado'
       });
     }
 
-    if (user[0].estado !== 'activo') {
+    if (users[0].estado_cuenta !== 'activo') {
       return res.status(401).json({
-        error: 'Cuenta desactivada'
+        error: 'Cuenta no activa. Verifica tu email o contacta al administrador.'
       });
     }
 
-    req.user = user[0];
+    req.user = users[0];
     next();
   } catch (error) {
     console.error('Error verificando token:', error);
@@ -48,15 +45,21 @@ const authenticateToken = async (req, res, next) => {
       });
     }
     
-    return res.status(403).json({
-      error: 'Token inválido'
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(403).json({
+        error: 'Token inválido'
+      });
+    }
+
+    return res.status(500).json({
+      error: 'Error en autenticación'
     });
   }
 };
 
 // Verificar rol de administrador
 const requireAdmin = (req, res, next) => {
-  if (req.user.rol !== 'admin' && req.user.rol !== 'administrador') {
+  if (req.user.rol !== 'admin') {
     return res.status(403).json({
       error: 'Se requieren permisos de administrador'
     });
@@ -64,11 +67,21 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-// Verificar rol de profesor
-const requireTeacher = (req, res, next) => {
+// Verificar rol de profesor o admin
+const requireTeacherOrAdmin = (req, res, next) => {
   if (req.user.rol !== 'profesor' && req.user.rol !== 'admin') {
     return res.status(403).json({
-      error: 'Se requieren permisos de profesor'
+      error: 'Se requieren permisos de profesor o administrador'
+    });
+  }
+  next();
+};
+
+// Verificar rol de alumno
+const requireStudent = (req, res, next) => {
+  if (req.user.rol !== 'alumno') {
+    return res.status(403).json({
+      error: 'Se requieren permisos de estudiante'
     });
   }
   next();
@@ -77,5 +90,6 @@ const requireTeacher = (req, res, next) => {
 module.exports = {
   authenticateToken,
   requireAdmin,
-  requireTeacher
+  requireTeacherOrAdmin,
+  requireStudent
 };
