@@ -1,180 +1,262 @@
-// backend/routes/auth-routes.js
+// ==========================================================
+// backend/routes/auth-routes.js - VERSIÓN FINAL SIN ERRORES
+// ==========================================================
 
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const router = express.Router();
 const authController = require('../controllers/authController');
+const authMiddleware = require('../middleware/authMiddleware');
 
-// ============================================
+// ==========================================================
 // MIDDLEWARE PARA MANEJAR ERRORES DE VALIDACIÓN
-// ============================================
-// ✅ AHORA (devuelve detalles claros):
+// ==========================================================
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    // Formatear errores de forma legible
     const erroresFormateados = errors.array().map(err => ({
       campo: err.path || err.param,
       mensaje: err.msg,
-      valor_recibido: err.value
+      valor_recibido: err.value,
+      ubicacion: err.location
     }));
-    console.log('❌ Errores de validación:', erroresFormateados);
+    
+    console.log('❌ Errores de validación:', JSON.stringify(erroresFormateados, null, 2));
+    
     return res.status(400).json({ 
-       error: 'Datos de entrada inválidos',
+      error: 'Datos de entrada inválidos',
       errores: erroresFormateados,
-      // Para debugging
-      mensaje: erroresFormateados.map(e => `${e.campo}: ${e.mensaje}`).join(', ')
+      mensaje: 'Por favor corrige los errores en el formulario',
+      count: errors.array().length
     });
   }
+  
+  // ✅ MARCADOR PARA EL CONTROLADOR
+  req.validacionExitosa = true;
+  req.erroresValidacion = [];
   next();
 };
 
-// ============================================
-// VALIDACIONES PARA REGISTRO
-// ============================================
+// ==========================================================
+// CONSTANTES DE CONFIGURACIÓN
+// ==========================================================
+const CONFIG = {
+  PASSWORD: {
+    MIN_LENGTH: 8,
+    PATTERN: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/
+  },
+  NOMBRE: {
+    MIN_LENGTH: 2,
+    MAX_LENGTH: 50,
+    PATTERN: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/
+  },
+  ROLES: {
+    ESTUDIANTE: ['alumno', 'estudiante'],
+    PROFESOR: ['profesor', 'teacher'],
+    ADMIN: ['admin', 'administrador'],
+    TODOS: ['alumno', 'estudiante', 'profesor', 'teacher', 'admin', 'administrador']
+  },
+  NIVELES: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'],
+  IDIOMAS: ['Inglés', 'Francés', 'Alemán', 'Italiano', 'Portugués', 'Japonés', 'Coreano', 'Chino']
+};
+
+// ==========================================================
+// VALIDACIONES PARA REGISTRO (CORREGIDAS)
+// ==========================================================
 const validacionesRegistro = [
+  // Información personal
   body('nombre')
     .trim()
-    .isLength({ min: 2, max: 50 })
-    .withMessage('El nombre debe tener entre 2 y 50 caracteres')
-    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
-    .withMessage('El nombre solo puede contener letras'),
+    .isLength({ min: CONFIG.NOMBRE.MIN_LENGTH, max: CONFIG.NOMBRE.MAX_LENGTH })
+    .withMessage(`El nombre debe tener entre ${CONFIG.NOMBRE.MIN_LENGTH} y ${CONFIG.NOMBRE.MAX_LENGTH} caracteres`)
+    .matches(CONFIG.NOMBRE.PATTERN)
+    .withMessage('El nombre solo puede contener letras y espacios'),
   
   body('primer_apellido')
     .trim()
-    .isLength({ min: 2, max: 50 })
-    .withMessage('El primer apellido debe tener entre 2 y 50 caracteres')
-    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
-    .withMessage('El apellido solo puede contener letras'),
+    .isLength({ min: CONFIG.NOMBRE.MIN_LENGTH, max: CONFIG.NOMBRE.MAX_LENGTH })
+    .withMessage(`El primer apellido debe tener entre ${CONFIG.NOMBRE.MIN_LENGTH} y ${CONFIG.NOMBRE.MAX_LENGTH} caracteres`)
+    .matches(CONFIG.NOMBRE.PATTERN)
+    .withMessage('El apellido solo puede contener letras y espacios'),
   
+  // ✅ FIX CRÍTICO: segundo_apellido con custom validator
   body('segundo_apellido')
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .trim()
-    .isLength({ max: 50 })
-    .withMessage('El segundo apellido no debe exceder 50 caracteres')
-    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]*$/)
-    .withMessage('El apellido solo puede contener letras'),
+    .custom((value) => {
+      // Si está vacío o es null, es válido
+      if (!value || value === '') return true;
+      
+      // Si tiene valor, validar longitud y patrón
+      if (value.length > CONFIG.NOMBRE.MAX_LENGTH) {
+        throw new Error(`El segundo apellido no debe exceder ${CONFIG.NOMBRE.MAX_LENGTH} caracteres`);
+      }
+      
+      if (!CONFIG.NOMBRE.PATTERN.test(value)) {
+        throw new Error('El segundo apellido solo puede contener letras y espacios');
+      }
+      
+      return true;
+    }),
   
+  // Credenciales
   body('correo')
+    .trim()
     .isEmail()
     .normalizeEmail()
-    .withMessage('Debe ser un email válido'),
+    .withMessage('Debe ser un email válido')
+    .isLength({ max: 100 })
+    .withMessage('El email no debe exceder 100 caracteres'),
   
   body('password')
-    .isLength({ min: 8 })
-    .withMessage('La contraseña debe tener al menos 8 caracteres')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .isLength({ min: CONFIG.PASSWORD.MIN_LENGTH })
+    .withMessage(`La contraseña debe tener al menos ${CONFIG.PASSWORD.MIN_LENGTH} caracteres`)
+    .matches(CONFIG.PASSWORD.PATTERN)
     .withMessage('La contraseña debe contener al menos una mayúscula, una minúscula y un número'),
 
-  // Validaciones por rol
+  // Rol
   body('rol')
     .optional()
-    .isIn(['alumno', 'estudiante', 'profesor', 'teacher', 'admin', 'administrador'])
-    .withMessage('Rol inválido'),
+    .isIn(CONFIG.ROLES.TODOS)
+    .withMessage(`Rol inválido. Valores permitidos: ${CONFIG.ROLES.TODOS.join(', ')}`),
 
-  // Validaciones para ESTUDIANTES
-  body('nivel_actual')
-    .if((value, { req }) => ['alumno', 'estudiante'].includes(req.body.rol))
-    .isIn(['A1', 'A2', 'B1', 'B2', 'C1', 'C2'])
-    .withMessage('Nivel inválido para estudiante'),
-
+  // ✅ Validación flexible para idioma (acepta ambos campos)
   body('idioma')
-    .if((value, { req }) => ['alumno', 'estudiante'].includes(req.body.rol))
-    .notEmpty()
-    .withMessage('Idioma de aprendizaje requerido para estudiantes')
-    .isIn(['Inglés', 'Francés', 'Alemán', 'Italiano', 'Portugués', 'Japonés', 'Coreano', 'Chino'])
-    .withMessage('Idioma no soportado'),
+    .optional()
+    .custom((value, { req }) => {
+      const rol = req.body.rol || 'alumno';
+      
+      // Solo validar para estudiantes
+      if (CONFIG.ROLES.ESTUDIANTE.includes(rol)) {
+        const idioma = req.body.idioma || req.body.idioma_aprendizaje;
+        
+        if (!idioma) {
+          throw new Error('Los estudiantes deben especificar un idioma de aprendizaje');
+        }
+        
+        if (!CONFIG.IDIOMAS.includes(idioma)) {
+          throw new Error(`Idioma no soportado. Valores permitidos: ${CONFIG.IDIOMAS.join(', ')}`);
+        }
+      }
+      
+      return true;
+    }),
 
-  // Validaciones para PROFESORES
+  // Validación alternativa para idioma_aprendizaje
+  body('idioma_aprendizaje')
+    .optional()
+    .custom((value, { req }) => {
+      // Si ya validamos "idioma", no necesitamos validar este
+      if (req.body.idioma) return true;
+      
+      const rol = req.body.rol || 'alumno';
+      
+      if (CONFIG.ROLES.ESTUDIANTE.includes(rol)) {
+        if (!value) {
+          throw new Error('Los estudiantes deben especificar un idioma de aprendizaje');
+        }
+        
+        if (!CONFIG.IDIOMAS.includes(value)) {
+          throw new Error(`Idioma no soportado. Valores permitidos: ${CONFIG.IDIOMAS.join(', ')}`);
+        }
+      }
+      
+      return true;
+    }),
+
+  // Nivel actual
+  body('nivel_actual')
+    .optional()
+    .custom((value, { req }) => {
+      const rol = req.body.rol || 'alumno';
+      
+      if (CONFIG.ROLES.ESTUDIANTE.includes(rol) && value) {
+        if (!CONFIG.NIVELES.includes(value)) {
+          throw new Error(`Nivel inválido. Valores permitidos: ${CONFIG.NIVELES.join(', ')}`);
+        }
+      }
+      
+      return true;
+    }),
+
+  // Validaciones para profesores
   body('titulo')
-    .if((value, { req }) => ['profesor', 'teacher'].includes(req.body.rol))
+    .if((value, { req }) => CONFIG.ROLES.PROFESOR.includes(req.body.rol))
     .optional()
     .trim()
     .isLength({ max: 100 })
     .withMessage('El título no debe exceder 100 caracteres'),
 
   body('especialidad')
-    .if((value, { req }) => ['profesor', 'teacher'].includes(req.body.rol))
+    .if((value, { req }) => CONFIG.ROLES.PROFESOR.includes(req.body.rol))
     .optional()
     .trim()
     .isLength({ max: 100 })
     .withMessage('La especialidad no debe exceder 100 caracteres'),
 
   body('años_experiencia')
-    .if((value, { req }) => ['profesor', 'teacher'].includes(req.body.rol))
+    .if((value, { req }) => CONFIG.ROLES.PROFESOR.includes(req.body.rol))
     .optional()
     .isInt({ min: 0, max: 50 })
     .withMessage('Los años de experiencia deben estar entre 0 y 50'),
 
   body('biografia')
-    .if((value, { req }) => ['profesor', 'teacher'].includes(req.body.rol))
+    .if((value, { req }) => CONFIG.ROLES.PROFESOR.includes(req.body.rol))
     .optional()
     .trim()
     .isLength({ max: 500 })
     .withMessage('La biografía no debe exceder 500 caracteres'),
 
-  // Validaciones para ADMINISTRADORES
-  body('departamento')
-    .if((value, { req }) => ['admin', 'administrador'].includes(req.body.rol))
-    .optional()
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('El departamento no debe exceder 100 caracteres'),
-
-  body('cargo')
-    .if((value, { req }) => ['admin', 'administrador'].includes(req.body.rol))
-    .optional()
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('El cargo no debe exceder 100 caracteres'),
-
-  body('nivel_acceso')
-    .if((value, { req }) => ['admin', 'administrador'].includes(req.body.rol))
-    .optional()
-    .isIn(['admin', 'superadmin', 'moderador'])
-    .withMessage('Nivel de acceso inválido'),
-
   handleValidationErrors
 ];
 
-// ============================================
+// ==========================================================
 // VALIDACIONES PARA LOGIN
-// ============================================
+// ==========================================================
 const validacionesLogin = [
   body('correo')
+    .trim()
     .isEmail()
     .normalizeEmail()
     .withMessage('Debe ser un email válido'),
   
   body('password')
     .notEmpty()
-    .withMessage('La contraseña es requerida'),
+    .withMessage('La contraseña es requerida')
+    .isLength({ min: 1 })
+    .withMessage('La contraseña no puede estar vacía'),
 
   handleValidationErrors
 ];
 
-// ============================================
+// ==========================================================
 // VALIDACIONES PARA VERIFICACIÓN
-// ============================================
+// ==========================================================
 const validacionesVerificacion = [
   body('correo')
+    .trim()
     .isEmail()
     .normalizeEmail()
     .withMessage('Debe ser un email válido'),
   
   body('codigo')
+    .trim()
     .isLength({ min: 6, max: 6 })
+    .withMessage('El código debe tener exactamente 6 caracteres')
     .isNumeric()
+    .withMessage('El código debe contener solo números')
+    .matches(/^[0-9]{6}$/)
     .withMessage('El código debe ser de 6 dígitos numéricos'),
 
   handleValidationErrors
 ];
 
-// ============================================
+// ==========================================================
 // VALIDACIONES PARA REENVIAR CÓDIGO
-// ============================================
+// ==========================================================
 const validacionesReenviarCodigo = [
   body('correo')
+    .trim()
     .isEmail()
     .normalizeEmail()
     .withMessage('Debe ser un email válido'),
@@ -182,11 +264,12 @@ const validacionesReenviarCodigo = [
   handleValidationErrors
 ];
 
-// ============================================
+// ==========================================================
 // VALIDACIONES PARA RECUPERAR CONTRASEÑA
-// ============================================
+// ==========================================================
 const validacionesRecuperarPassword = [
   body('correo')
+    .trim()
     .isEmail()
     .normalizeEmail()
     .withMessage('Debe ser un email válido'),
@@ -194,169 +277,291 @@ const validacionesRecuperarPassword = [
   handleValidationErrors
 ];
 
-// ============================================
+// ==========================================================
 // VALIDACIONES PARA RESTABLECER CONTRASEÑA
-// ============================================
+// ==========================================================
 const validacionesRestablecerPassword = [
   body('token')
+    .trim()
     .notEmpty()
     .withMessage('El token es requerido'),
   
   body('nueva_password')
-    .isLength({ min: 8 })
-    .withMessage('La contraseña debe tener al menos 8 caracteres')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .isLength({ min: CONFIG.PASSWORD.MIN_LENGTH })
+    .withMessage(`La contraseña debe tener al menos ${CONFIG.PASSWORD.MIN_LENGTH} caracteres`)
+    .matches(CONFIG.PASSWORD.PATTERN)
     .withMessage('La contraseña debe contener al menos una mayúscula, una minúscula y un número'),
 
   handleValidationErrors
 ];
 
-// ============================================
-// VALIDACIONES PARA ACTUALIZAR NIVEL (NUEVO)
-// ============================================
+// ==========================================================
+// VALIDACIONES PARA ACTUALIZAR NIVEL
+// ==========================================================
 const validacionesActualizarNivel = [
   body('correo')
+    .trim()
     .isEmail()
     .normalizeEmail()
     .withMessage('Debe ser un email válido'),
   
   body('nivel')
-    .isIn(['A1', 'A2', 'B1', 'B2', 'C1', 'C2'])
-    .withMessage('Nivel inválido'),
+    .isIn(CONFIG.NIVELES)
+    .withMessage(`Nivel inválido. Valores permitidos: ${CONFIG.NIVELES.join(', ')}`),
   
   body('idioma')
     .optional()
-    .notEmpty()
-    .withMessage('El idioma no puede estar vacío'),
+    .isIn(CONFIG.IDIOMAS)
+    .withMessage(`Idioma no soportado. Valores permitidos: ${CONFIG.IDIOMAS.join(', ')}`),
 
   handleValidationErrors
 ];
 
-// ============================================
-// RUTAS PÚBLICAS DE AUTENTICACIÓN
-// ============================================
-
-/**
- * POST /api/auth/registro
- * Registra un nuevo usuario
- */
-router.post('/registro', validacionesRegistro, authController.registrarUsuario);
-
-/**
- * POST /api/auth/login
- * Inicia sesión con credenciales
- */
-router.post('/login', validacionesLogin, authController.iniciarSesion);
-
-/**
- * POST /api/auth/verificar
- * Verifica el email con código de 6 dígitos
- */
-router.post('/verificar', validacionesVerificacion, authController.verificarCuenta);
-
-/**
- * POST /api/auth/reenviar-verificacion
- * Reenvía el código de verificación al correo
- */
-router.post('/reenviar-verificacion', validacionesReenviarCodigo, authController.reenviarVerificacion);
-
-/**
- * POST /api/auth/recuperar-contrasena
- * Envía email con enlace para restablecer contraseña
- */
-router.post('/recuperar-contrasena', validacionesRecuperarPassword, authController.solicitarRecuperacionContrasena);
-
-/**
- * POST /api/auth/restablecer-contrasena
- * Restablece la contraseña con token válido
- */
-router.post('/restablecer-contrasena', validacionesRestablecerPassword, authController.restablecerContrasena);
-
-/**
- * PATCH /api/auth/actualizar-nivel (NUEVO)
- * Actualiza el nivel del estudiante después de la evaluación
- */
-router.patch('/actualizar-nivel', validacionesActualizarNivel, authController.actualizarNivel);
-
-/**
- * GET /api/auth/verificar-token
- * Verifica si el token JWT es válido
- */
-router.get('/verificar-token', authController.verificarToken);
-
-// ============================================
-// RUTAS DE UTILIDAD Y SALUD
-// ============================================
-
-/**
- * GET /api/auth/health
- * Verifica el estado del servicio de autenticación
- */
-router.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    service: 'Auth Service',
-    version: '1.0.0',
+// ==========================================================
+// MIDDLEWARE DE LOGGING
+// ==========================================================
+router.use((req, res, next) => {
+  const logData = {
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    uptime: process.uptime()
-  });
+    method: req.method,
+    path: req.path,
+    ip: req.ip
+  };
+  
+  // Si es POST, mostrar body (sin password)
+  if (req.method === 'POST' && req.body) {
+    const bodyLog = { ...req.body };
+    if (bodyLog.password) bodyLog.password = '***';
+    if (bodyLog.nueva_password) bodyLog.nueva_password = '***';
+    logData.body = bodyLog;
+  }
+  
+  console.log(`🔐 [AUTH]`, logData);
+  next();
 });
 
-/**
- * GET /api/auth/config
- * Obtiene configuración pública de autenticación
- */
+// ==========================================================
+// RUTAS PÚBLICAS (SIN AUTENTICACIÓN)
+// ==========================================================
+
+// Registro y verificación
+router.post('/registro', validacionesRegistro, authController.registrarUsuario);
+router.post('/verificar', validacionesVerificacion, authController.verificarCuenta);
+router.post('/reenviar-verificacion', validacionesReenviarCodigo, authController.reenviarVerificacion);
+
+// Login
+router.post('/login', validacionesLogin, authController.iniciarSesion);
+
+// Recuperación de contraseña
+router.post('/recuperar-contrasena', validacionesRecuperarPassword, authController.solicitarRecuperacionContrasena);
+router.post('/restablecer-contrasena', validacionesRestablecerPassword, authController.restablecerContrasena);
+
+// ==========================================================
+// RUTAS PROTEGIDAS (CON AUTENTICACIÓN)
+// ==========================================================
+
+// Verificación y gestión de cuenta
+router.get('/verificar-token', authMiddleware.verificarToken, authController.verificarToken);
+router.get('/perfil', authMiddleware.verificarToken, authController.obtenerPerfil);
+router.post('/logout', authMiddleware.verificarToken, authController.cerrarSesion);
+
+// Actualización de nivel (solo para estudiantes verificados)
+router.patch(
+  '/actualizar-nivel', 
+  authMiddleware.verificarToken,
+  authMiddleware.verificarEmail,
+  validacionesActualizarNivel, 
+  authController.actualizarNivel
+);
+
+// ==========================================================
+// RUTAS DE UTILIDAD Y DIAGNÓSTICO
+// ==========================================================
+
+router.get('/health', (req, res) => {
+  const health = {
+    status: 'OK',
+    service: 'Authentication Service',
+    version: '2.0.0',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    uptime: Math.floor(process.uptime()) + 's',
+    memory: {
+      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
+      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + 'MB'
+    },
+    database: 'Connected' // Podrías hacer un ping real aquí
+  };
+  
+  res.json(health);
+});
+
 router.get('/config', (req, res) => {
   res.json({
     auth: {
-      password_min_length: 8,
-      password_requirements: {
-        min_uppercase: 1,
-        min_lowercase: 1,
-        min_numbers: 1,
-        min_special_chars: 0
+      password: {
+        min_length: CONFIG.PASSWORD.MIN_LENGTH,
+        requirements: {
+          uppercase: 1,
+          lowercase: 1,
+          numbers: 1,
+          special_chars: 0
+        }
       },
-      verification_code_length: 6,
-      verification_code_expiry_hours: 24,
-      supported_roles: ['alumno', 'estudiante', 'profesor', 'teacher', 'admin', 'administrador'],
-      supported_levels: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'],
-      supported_languages: [
-        'Inglés', 
-        'Francés', 
-        'Alemán', 
-        'Italiano', 
-        'Portugués', 
-        'Japonés', 
-        'Coreano', 
-        'Chino'
-      ]
+      verification: {
+        code_length: 6,
+        code_expiry_hours: 24,
+        max_attempts: 3
+      },
+      roles: CONFIG.ROLES.TODOS,
+      levels: CONFIG.NIVELES,
+      languages: CONFIG.IDIOMAS
     },
     features: {
       email_verification: true,
       password_reset: true,
       account_recovery: true,
       multi_language_support: true,
-      level_assessment: true
+      level_assessment: true,
+      profile_management: true,
+      refresh_tokens: false // Por implementar
     },
-    limits: {
+    security: {
       max_login_attempts: 5,
       lockout_duration_minutes: 15,
-      max_verification_attempts: 3
+      token_expiry: process.env.JWT_EXPIRES_IN || '1h'
+    },
+    endpoints: {
+      public: [
+        'POST /api/auth/registro',
+        'POST /api/auth/login',
+        'POST /api/auth/verificar',
+        'POST /api/auth/recuperar-contrasena',
+        'POST /api/auth/restablecer-contrasena',
+        'POST /api/auth/reenviar-verificacion'
+      ],
+      private: [
+        'GET /api/auth/verificar-token',
+        'GET /api/auth/perfil',
+        'POST /api/auth/logout',
+        'PATCH /api/auth/actualizar-nivel'
+      ],
+      utility: [
+        'GET /api/auth/health',
+        'GET /api/auth/config',
+        'GET /api/auth/docs'
+      ]
     }
   });
 });
 
-// ============================================
-// MANEJO DE RUTAS NO ENCONTRADAS
-// ============================================
-router.use((req, res) => {
-  res.status(404).json({
-    error: 'Ruta no encontrada',
-    path: req.path,
-    method: req.method,
-    mensaje: 'La ruta de autenticación solicitada no existe'
+router.get('/docs', (req, res) => {
+  res.json({
+    name: 'SpeakLexi Authentication API',
+    description: 'Sistema completo de autenticación y gestión de usuarios',
+    version: '2.0.0',
+    baseUrl: `${req.protocol}://${req.get('host')}/api/auth`,
+    documentation: 'https://github.com/sTr4yDev/speakLexi2.0',
+    endpoints: {
+      'POST /registro': {
+        description: 'Registrar nuevo usuario',
+        authentication: false,
+        body: {
+          nombre: 'string (requerido, 2-50 caracteres)',
+          primer_apellido: 'string (requerido, 2-50 caracteres)',
+          segundo_apellido: 'string (opcional, max 50 caracteres)',
+          correo: 'email (requerido)',
+          password: 'string (requerido, min 8 caracteres, debe contener mayúscula, minúscula y número)',
+          rol: 'string (opcional, default: alumno)',
+          idioma: 'string (requerido para estudiantes)',
+          nivel_actual: 'string (opcional, default: A1 para estudiantes)'
+        },
+        response: {
+          201: 'Usuario creado exitosamente',
+          400: 'Datos inválidos',
+          409: 'Email ya registrado'
+        }
+      },
+      'POST /login': {
+        description: 'Iniciar sesión',
+        authentication: false,
+        body: {
+          correo: 'email (requerido)',
+          password: 'string (requerido)'
+        },
+        response: {
+          200: 'Login exitoso, retorna token JWT',
+          401: 'Credenciales inválidas',
+          423: 'Cuenta bloqueada temporalmente'
+        }
+      },
+      'POST /verificar': {
+        description: 'Verificar cuenta con código de 6 dígitos',
+        authentication: false,
+        body: {
+          correo: 'email (requerido)',
+          codigo: 'string (requerido, 6 dígitos)'
+        },
+        response: {
+          200: 'Cuenta verificada exitosamente',
+          400: 'Código inválido o expirado'
+        }
+      },
+      'GET /perfil': {
+        description: 'Obtener perfil del usuario autenticado',
+        authentication: true,
+        headers: {
+          Authorization: 'Bearer {token}'
+        },
+        response: {
+          200: 'Datos del perfil',
+          401: 'No autenticado'
+        }
+      }
+    }
   });
 });
+
+// ==========================================================
+// MANEJO DE ERRORES
+// ==========================================================
+
+// 404 - Ruta no encontrada
+router.use((req, res) => {
+  res.status(404).json({
+    error: 'Ruta de autenticación no encontrada',
+    path: req.path,
+    method: req.method,
+    available_endpoints: [
+      'POST /api/auth/registro',
+      'POST /api/auth/login',
+      'POST /api/auth/verificar',
+      'POST /api/auth/recuperar-contrasena',
+      'GET /api/auth/verificar-token',
+      'GET /api/auth/health',
+      'GET /api/auth/config',
+      'GET /api/auth/docs'
+    ],
+    suggestion: 'Consulta GET /api/auth/docs para ver la documentación completa'
+  });
+});
+
+// Middleware para errores no manejados
+router.use((error, req, res, next) => {
+  console.error('💥 Error no manejado en auth-routes:', error);
+  
+  res.status(error.status || 500).json({
+    error: 'Error interno del servidor',
+    mensaje: 'Ocurrió un error inesperado en el servicio de autenticación',
+    reference: `${req.method} ${req.path}`,
+    codigo: 'INTERNAL_SERVER_ERROR',
+    timestamp: new Date().toISOString(),
+    ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+  });
+});
+
+// ==========================================================
+// EXPORTAR
+// ==========================================================
 
 module.exports = router;

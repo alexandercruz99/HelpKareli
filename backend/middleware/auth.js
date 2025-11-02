@@ -1,95 +1,126 @@
-const { verificarToken } = require('../config/jwt');
+//backend/middleware
+const jwt = require('jsonwebtoken');
 const database = require('../config/database');
 
-// Verificar token JWT
-const authenticateToken = async (req, res, next) => {
-  try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+// @desc    Verificar token JWT
+// @access  Private
+const verificarToken = async (req, res, next) => {
+    try {
+        let token;
 
-    if (!token) {
-      return res.status(401).json({
-        error: 'Token de acceso requerido'
-      });
+        // Obtener token del header
+        if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+            token = req.headers.authorization.split(' ')[1];
+        } 
+        // Obtener token de query string (para desarrollo)
+        else if (req.query.token) {
+            token = req.query.token;
+        }
+
+        if (!token) {
+            return res.status(401).json({
+                error: 'Acceso no autorizado. Token requerido.',
+                codigo: 'TOKEN_REQUIRED'
+            });
+        }
+
+        // Verificar token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secreto_por_defecto_para_desarrollo');
+        
+        // Verificar si el usuario aún existe en la base de datos
+        const [usuarios] = await database.query(
+            `SELECT id, nombre, correo, rol, estado_cuenta, email_verificado 
+             FROM usuarios 
+             WHERE id = ? AND estado_cuenta = 'activo'`,
+            [decoded.id]
+        );
+
+        if (usuarios.length === 0) {
+            return res.status(401).json({
+                error: 'Token inválido. Usuario no encontrado o cuenta inactiva.',
+                codigo: 'USER_NOT_FOUND'
+            });
+        }
+
+        // Agregar usuario al request
+        req.user = usuarios[0];
+        next();
+
+    } catch (error) {
+        console.error('❌ Error verificando token:', error);
+
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({
+                error: 'Token inválido',
+                codigo: 'INVALID_TOKEN'
+            });
+        }
+
+        if (error.name === 'TokenExpiredError') {
+            return res.status(401).json({
+                error: 'Token expirado',
+                codigo: 'TOKEN_EXPIRED'
+            });
+        }
+
+        res.status(500).json({
+            error: 'Error interno del servidor al verificar token',
+            codigo: 'TOKEN_VERIFICATION_ERROR'
+        });
     }
+};
 
-    const decoded = verificarToken(token);
-    
-    // Verificar que el usuario aún existe en la base de datos
-    const [users] = await database.query(
-      `SELECT id, correo, nombre, primer_apellido, rol, estado_cuenta 
-       FROM usuarios WHERE id = ?`,
-      [decoded.id]
-    );
+// @desc    Verificar rol de usuario
+// @access  Private
+const verificarRol = (rolesPermitidos) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({
+                error: 'Usuario no autenticado',
+                codigo: 'UNAUTHENTICATED'
+            });
+        }
 
-    if (users.length === 0) {
-      return res.status(401).json({
-        error: 'Usuario no encontrado'
-      });
+        if (!rolesPermitidos.includes(req.user.rol)) {
+            return res.status(403).json({
+                error: 'No tienes permisos para realizar esta acción',
+                codigo: 'INSUFFICIENT_PERMISSIONS',
+                rol_requerido: rolesPermitidos,
+                rol_actual: req.user.rol
+            });
+        }
+
+        next();
+    };
+};
+
+// @desc    Verificar si el email está verificado
+// @access  Private
+const verificarEmail = (req, res, next) => {
+    if (!req.user.email_verificado) {
+        return res.status(403).json({
+            error: 'Debes verificar tu email antes de acceder a este recurso',
+            codigo: 'EMAIL_NOT_VERIFIED'
+        });
     }
-
-    if (users[0].estado_cuenta !== 'activo') {
-      return res.status(401).json({
-        error: 'Cuenta no activa. Verifica tu email o contacta al administrador.'
-      });
-    }
-
-    req.user = users[0];
     next();
-  } catch (error) {
-    console.error('Error verificando token:', error);
-    
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        error: 'Token expirado'
-      });
-    }
-    
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(403).json({
-        error: 'Token inválido'
-      });
-    }
-
-    return res.status(500).json({
-      error: 'Error en autenticación'
-    });
-  }
 };
 
-// Verificar rol de administrador
-const requireAdmin = (req, res, next) => {
-  if (req.user.rol !== 'admin') {
-    return res.status(403).json({
-      error: 'Se requieren permisos de administrador'
+// @desc    Middleware para loguear requests
+// @access  Private/Public
+const logRequests = (req, res, next) => {
+    console.log(`📨 ${req.method} ${req.path}`, {
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        timestamp: new Date().toISOString(),
+        user: req.user ? req.user.id : 'Anonymous'
     });
-  }
-  next();
-};
-
-// Verificar rol de profesor o admin
-const requireTeacherOrAdmin = (req, res, next) => {
-  if (req.user.rol !== 'profesor' && req.user.rol !== 'admin') {
-    return res.status(403).json({
-      error: 'Se requieren permisos de profesor o administrador'
-    });
-  }
-  next();
-};
-
-// Verificar rol de alumno
-const requireStudent = (req, res, next) => {
-  if (req.user.rol !== 'alumno') {
-    return res.status(403).json({
-      error: 'Se requieren permisos de estudiante'
-    });
-  }
-  next();
+    next();
 };
 
 module.exports = {
-  authenticateToken,
-  requireAdmin,
-  requireTeacherOrAdmin,
-  requireStudent
+    verificarToken,
+    verificarRol,
+    verificarEmail,
+    logRequests
 };

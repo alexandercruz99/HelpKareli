@@ -1,20 +1,51 @@
-https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/.env
-https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/package.json
+# RAW LINKS — Actualizado 2025-11-01 22:15:05
+# Repositorio: sTr4yDev/speakLexi2.0
+# Commit: 4c64269d8efa9ba07a3eb59a8aec5e938dd25b62
+
+========================= BACKEND LINKS =========================
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/config/database.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/config/email.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/config/jwt.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/models/usuario.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/routes/auth-routes.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/server.js
-https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/index.html
-https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/asignar-nivel.html
-https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/dashboard-admin.html
-https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/dashboard-estudiante.html
-https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/index.html
-https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/login.html
-https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/recuperar-contrasena.html
-https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/registro.html
-https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/verificar-email.html
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/docs/utils/generar-links.py
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/api/auth.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/api/usuario.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/config.js
+
+========================= FRONTEND LINKS =========================
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/controllers/authController.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/middleware/auth.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/middleware/validator.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/package.json
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/services/emailService.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/index.html
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/admin/dashboard-admin.html
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/auth/login.html
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/auth/recuperar-contrasena.html
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/auth/registro.html
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/auth/restablecer-contrasena.html
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/auth/verificar-email.html
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/estudiante/dashboard-estudiante.html
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/onboarding/asignar-nivel.html
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/onboarding/cambiar-curso.html
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/css/main.css
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/auth.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/components/login-form.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/components/navbar.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/components/register-form.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/utils/auth-storage.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/utils/toast.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/utils/validators.js
+
+========================= DOCS LINKS =========================
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/docs/MODULO 1/README.md
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/docs/utils/raw_links.txt
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/docs/utils/raw_links_20251101_190332.txt
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/docs/utils/raw_links_20251101_191126.txt
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/docs/utils/raw_links_20251101_194817.txt
+
+========================= OTROS =========================
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/.gitignore
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/.env
