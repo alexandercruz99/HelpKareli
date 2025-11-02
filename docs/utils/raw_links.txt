@@ -1,6 +1,6 @@
-# RAW LINKS — Actualizado 2025-11-02 09:44:20
+# RAW LINKS — Actualizado 2025-11-02 11:46:28
 # Repositorio: sTr4yDev/speakLexi2.0
-# Commit: 31d37634879ac60337a443a957b18221cc7ffb47
+# Commit: b90dac21c93682e5f12ad6256f92d050c145136d
 
 ========================= BACKEND LINKS =========================
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/config/database.js
@@ -28,9 +28,10 @@ https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/auth
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/auth/registro.html
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/auth/restablecer-contrasena.html
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/auth/verificar-email.html
-https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/estudiante/dashboard-estudiante.html
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/estudiante/cambiar-curso.html
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/estudiante/estudiante-dashboard.html
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/estudiante/perfil.html
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/onboarding/asignar-nivel.html
-https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/onboarding/cambiar-curso.html
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/css/main.css
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/auth.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/components/login-form.js
@@ -41,6 +42,7 @@ https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/utils/validators.js
 
 ========================= DOCS LINKS =========================
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/docs/MODULO 1/GUIDELINES.md
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/docs/MODULO 1/README.md
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/docs/utils/raw_links.txt
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/docs/utils/raw_links_20251101_190332.txt

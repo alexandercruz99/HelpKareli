@@ -1,0 +1,86 @@
+<!-- ============================================
+     SPEAKLEXI - COMPONENTE NAVBAR
+     Archivo: assets/components/navbar.html
+     ============================================ -->
+
+<nav class="fixed w-full z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 transition-colors duration-300">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16 items-center">
+            <!-- Logo -->
+            <div class="flex items-center space-x-2">
+                <a href="index.html" class="flex items-center space-x-2 group">
+                    <div class="w-8 h-8 bg-gradient-to-r from-secondary-600 to-primary-600 rounded-lg flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
+                        <i class="fas fa-comments text-white text-sm"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold bg-gradient-to-r from-secondary-600 to-primary-600 bg-clip-text text-transparent">
+                        SpeakLexi
+                    </h1>
+                </a>
+            </div>
+            
+            <!-- Botones de navegación -->
+            <div class="flex items-center space-x-4">
+                <!-- Toggle tema -->
+                <button 
+                    id="theme-toggle" 
+                    class="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    aria-label="Cambiar tema"
+                >
+                    <i class="fas fa-moon text-gray-600 dark:text-yellow-400" id="theme-icon"></i>
+                </button>
+                
+                <!-- Menú desktop -->
+                <div class="hidden md:flex space-x-4">
+                    <a href="index.html" class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors">
+                        Inicio
+                    </a>
+                    <a href="login.html" class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors">
+                        Iniciar Sesión
+                    </a>
+                    <a href="registro.html" class="px-4 py-2 bg-gradient-to-r from-secondary-600 to-primary-600 text-white rounded-lg font-medium hover:from-secondary-700 hover:to-primary-700 transform hover:-translate-y-0.5 transition-all duration-200 shadow-md hover:shadow-lg">
+                        Registrarse
+                    </a>
+                </div>
+
+                <!-- Botón menú móvil -->
+                <button 
+                    id="mobile-menu-toggle" 
+                    class="md:hidden p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    aria-label="Abrir menú"
+                >
+                    <i class="fas fa-bars text-gray-600 dark:text-gray-300"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Menú móvil -->
+    <div id="mobile-menu" class="hidden md:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+        <div class="px-4 py-4 space-y-2">
+            <a href="index.html" class="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                Inicio
+            </a>
+            <a href="login.html" class="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                Iniciar Sesión
+            </a>
+            <a href="registro.html" class="block px-4 py-2 bg-gradient-to-r from-secondary-600 to-primary-600 text-white rounded-lg font-medium text-center">
+                Registrarse
+            </a>
+        </div>
+    </div>
+</nav>
+
+<script>
+    // Toggle menú móvil
+    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+    const mobileMenu = document.getElementById('mobile-menu');
+    
+    if (mobileMenuToggle && mobileMenu) {
+        mobileMenuToggle.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+            const icon = mobileMenuToggle.querySelector('i');
+            icon.classList.toggle('fa-bars');
+            icon.classList.toggle('fa-times');
+        });
+    }
+</script>
