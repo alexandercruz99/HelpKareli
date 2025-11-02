@@ -412,9 +412,9 @@
 
                 showToast('✅ Correo verificado correctamente', 'success');
 
-                // Limpiar localStorage de registro
-                localStorage.removeItem('correo');
-                localStorage.removeItem('idioma');
+                // ✅ CORRECCIÓN: NO borrar localStorage aquí
+                // Se necesita en asignar-nivel.html
+                // El localStorage se limpiará después de asignar el nivel exitosamente
 
                 // Redirigir a asignar nivel
                 setTimeout(() => {

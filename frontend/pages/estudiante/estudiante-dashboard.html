@@ -90,7 +90,7 @@
                                 <i class="fas fa-user mr-3 text-gray-400"></i>
                                 Mi Perfil
                             </a>
-                            <a href="cambiar-curso.html" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <a href="/pages/estudiante/cambiar-curso.html" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                                 <i class="fas fa-language mr-3 text-gray-400"></i>
                                 Cambiar Curso
                             </a>
@@ -639,7 +639,7 @@
         document.getElementById('logout-btn').addEventListener('click', () => {
             localStorage.clear();
             showToast('Sesión cerrada correctamente', 'success');
-            setTimeout(() => window.location.href = 'login.html', 1000);
+            setTimeout(() => window.location.href = '/pages/auth/login.html', 1000);
         });
 
         // ===== ANIMACIONES DE CARGA =====

@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Perfil - SpeakLexi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                        },
+                        secondary: {
+                            50: '#faf5ff',
+                            100: '#f3e8ff',
+                            500: '#a855f7',
+                            600: '#9333ea',
+                            700: '#7c3aed',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    <!-- Navbar -->
+    <nav class="fixed w-full z-50 bg-white dark:bg-gray-800 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-4">
+                    <a href="/pages/estudiante/estudiante-dashboard.html" class="flex items-center space-x-2">
+                        <div class="w-8 h-8 bg-gradient-to-r from-secondary-600 to-primary-600 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-comments text-white text-sm"></i>
+                        </div>
+                        <h1 class="text-xl font-bold bg-gradient-to-r from-secondary-600 to-primary-600 bg-clip-text text-transparent">
+                            SpeakLexi
+                        </h1>
+                    </a>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <button id="theme-toggle" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                        <i class="fas fa-moon text-gray-600 dark:text-yellow-400" id="theme-icon"></i>
+                    </button>
+                    
+                    <button id="logout-btn" class="px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg font-medium transition-colors">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Cerrar Sesión
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="pt-20 pb-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header -->
+            <div class="mb-8">
+                <a href="/pages/estudiante/estudiante-dashboard.html" class="inline-flex items-center text-primary-600 dark:text-primary-400 hover:underline mb-4">
+                    <i class="fas fa-arrow-left mr-2"></i>Volver al Dashboard
+                </a>
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Mi Perfil</h1>
+                <p class="text-gray-600 dark:text-gray-400 mt-2">Administra tu información personal y preferencias</p>
+            </div>
+
+            <!-- Foto de Perfil -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 mb-6">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Foto de Perfil</h2>
+                <div class="flex items-center space-x-6">
+                    <div class="relative">
+                        <img id="profile-photo" src="https://ui-avatars.com/api/?name=Usuario&background=9333ea&color=fff&size=128" alt="Foto de perfil" class="w-32 h-32 rounded-full border-4 border-primary-500">
+                        <button id="change-photo-btn" class="absolute bottom-0 right-0 bg-primary-600 hover:bg-primary-700 text-white rounded-full p-2 shadow-lg transition-colors">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Formatos permitidos: JPG, PNG (máx. 5MB)</p>
+                        <input type="file" id="photo-input" accept="image/jpeg,image/png" class="hidden">
+                        <button onclick="document.getElementById('photo-input').click()" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                            <i class="fas fa-upload mr-2"></i>Subir Foto
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Información Personal -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 mb-6">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Información Personal</h2>
+                <form id="personal-info-form" class="space-y-6">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="nombre" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Nombre
+                            </label>
+                            <input
+                                type="text"
+                                id="nombre"
+                                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                placeholder="Tu nombre"
+                            />
+                        </div>
+
+                        <div>
+                            <label for="apellidos" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Apellidos
+                            </label>
+                            <input
+                                type="text"
+                                id="apellidos"
+                                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                placeholder="Tus apellidos"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Correo Electrónico
+                        </label>
+                        <input
+                            type="email"
+                            id="email"
+                            disabled
+                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-100 dark:bg-gray-900 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                            placeholder="tu@email.com"
+                        />
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            <i class="fas fa-info-circle mr-1"></i>El correo no se puede cambiar
+                        </p>
+                    </div>
+
+                    <div>
+                        <label for="telefono" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Teléfono <span class="text-gray-400">(opcional)</span>
+                        </label>
+                        <input
+                            type="tel"
+                            id="telefono"
+                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            placeholder="+52 123 456 7890"
+                        />
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button
+                            type="submit"
+                            id="save-personal-btn"
+                            class="px-6 py-3 bg-gradient-to-r from-secondary-600 to-primary-600 text-white rounded-xl font-semibold hover:from-secondary-700 hover:to-primary-700 transition-all"
+                        >
+                            <i class="fas fa-save mr-2"></i>Guardar Cambios
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Información Académica -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 mb-6">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Información Académica</h2>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="p-4 bg-primary-50 dark:bg-primary-900/20 rounded-xl border border-primary-200 dark:border-primary-800">
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Idioma Actual</p>
+                        <p class="text-2xl font-bold text-primary-600 dark:text-primary-400" id="idioma-display">-</p>
+                    </div>
+                    <div class="p-4 bg-secondary-50 dark:bg-secondary-900/20 rounded-xl border border-secondary-200 dark:border-secondary-800">
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Nivel Actual</p>
+                        <p class="text-2xl font-bold text-secondary-600 dark:text-secondary-400" id="nivel-display">-</p>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <a href="/pages/estudiante/cambiar-curso.html" class="inline-flex items-center text-primary-600 dark:text-primary-400 hover:underline">
+                        <i class="fas fa-exchange-alt mr-2"></i>Cambiar Curso o Nivel
+                    </a>
+                </div>
+            </div>
+
+            <!-- Cambiar Contraseña -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 mb-6">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Cambiar Contraseña</h2>
+                <form id="change-password-form" class="space-y-6">
+                    <div>
+                        <label for="current-password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Contraseña Actual
+                        </label>
+                        <input
+                            type="password"
+                            id="current-password"
+                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            placeholder="••••••••"
+                        />
+                    </div>
+
+                    <div>
+                        <label for="new-password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Nueva Contraseña
+                        </label>
+                        <input
+                            type="password"
+                            id="new-password"
+                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            placeholder="••••••••"
+                        />
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Mínimo 8 caracteres, una mayúscula, una minúscula y un número
+                        </p>
+                    </div>
+
+                    <div>
+                        <label for="confirm-password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Confirmar Nueva Contraseña
+                        </label>
+                        <input
+                            type="password"
+                            id="confirm-password"
+                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            placeholder="••••••••"
+                        />
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button
+                            type="submit"
+                            id="change-password-btn"
+                            class="px-6 py-3 bg-gradient-to-r from-secondary-600 to-primary-600 text-white rounded-xl font-semibold hover:from-secondary-700 hover:to-primary-700 transition-all"
+                        >
+                            <i class="fas fa-key mr-2"></i>Cambiar Contraseña
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Zona de Peligro -->
+            <div class="bg-red-50 dark:bg-red-900/20 rounded-2xl shadow-lg border-2 border-red-200 dark:border-red-800 p-8">
+                <div class="flex items-start gap-4 mb-6">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle text-3xl text-red-600 dark:text-red-400"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-red-900 dark:text-red-200 mb-2">Zona de Peligro</h2>
+                        <p class="text-sm text-red-800 dark:text-red-300">
+                            Las acciones en esta sección son permanentes y no se pueden deshacer. Por favor, procede con precaución.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Desactivar Cuenta -->
+                <div class="mb-6 p-6 bg-white dark:bg-gray-800 rounded-xl border border-red-200 dark:border-red-800">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                                <i class="fas fa-pause-circle text-orange-500 mr-2"></i>Desactivar Cuenta
+                            </h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                                Tu cuenta será desactivada temporalmente. Podrás reactivarla en cualquier momento iniciando sesión nuevamente dentro de los próximos 30 días.
+                            </p>
+                            <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1 mb-4">
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Tu progreso se conservará</li>
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Tus datos permanecerán guardados</li>
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Puedes reactivar en 30 días</li>
+                            </ul>
+                        </div>
+                        <button
+                            id="deactivate-btn"
+                            class="ml-4 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors whitespace-nowrap"
+                        >
+                            <i class="fas fa-pause mr-2"></i>Desactivar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Eliminar Cuenta -->
+                <div class="p-6 bg-white dark:bg-gray-800 rounded-xl border border-red-200 dark:border-red-800">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                                <i class="fas fa-trash-alt text-red-600 mr-2"></i>Eliminar Cuenta Permanentemente
+                            </h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                                Esta acción eliminará permanentemente tu cuenta y todos tus datos. No podrás recuperar tu información después de esta acción.
+                            </p>
+                            <ul class="text-sm text-red-600 dark:text-red-400 space-y-1 mb-4">
+                                <li><i class="fas fa-times mr-2"></i>Todo tu progreso se perderá</li>
+                                <li><i class="fas fa-times mr-2"></i>Tus datos serán eliminados</li>
+                                <li><i class="fas fa-times mr-2"></i>Esta acción NO se puede deshacer</li>
+                            </ul>
+                        </div>
+                        <button
+                            id="delete-btn"
+                            class="ml-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors whitespace-nowrap"
+                        >
+                            <i class="fas fa-trash mr-2"></i>Eliminar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación Desactivar -->
+    <div id="deactivate-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-8 animate-fade-in">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-pause-circle text-3xl text-orange-600 dark:text-orange-400"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">¿Desactivar tu cuenta?</h3>
+                <p class="text-gray-600 dark:text-gray-400">
+                    Podrás reactivarla iniciando sesión en los próximos 30 días
+                </p>
+            </div>
+            <div class="space-y-3">
+                <button
+                    id="confirm-deactivate-btn"
+                    class="w-full px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold transition-colors"
+                >
+                    <i class="fas fa-pause mr-2"></i>Sí, Desactivar Mi Cuenta
+                </button>
+                <button
+                    id="cancel-deactivate-btn"
+                    class="w-full px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                >
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación Eliminar -->
+    <div id="delete-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-8 animate-fade-in">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-exclamation-triangle text-3xl text-red-600 dark:text-red-400"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">¿Eliminar permanentemente?</h3>
+                <p class="text-gray-600 dark:text-gray-400 mb-4">
+                    Esta acción NO se puede deshacer. Todos tus datos se perderán para siempre.
+                </p>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Escribe "ELIMINAR" para confirmar
+                </label>
+                <input
+                    type="text"
+                    id="delete-confirmation-input"
+                    class="w-full px-4 py-3 border-2 border-red-300 dark:border-red-700 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="ELIMINAR"
+                />
+            </div>
+
+            <div class="space-y-3">
+                <button
+                    id="confirm-delete-btn"
+                    disabled
+                    class="w-full px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <i class="fas fa-trash mr-2"></i>Sí, Eliminar Permanentemente
+                </button>
+                <button
+                    id="cancel-delete-btn"
+                    class="w-full px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                >
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-20 right-4 z-50 space-y-2 max-w-sm w-full"></div>
+
+    <script type="module">
+        // Verificar autenticación
+        const usuario = JSON.parse(localStorage.getItem('usuario') || 'null');
+        const token = localStorage.getItem('token');
+
+        if (!usuario || !token) {
+            window.location.href = '/pages/auth/login.html';
+        }
+
+        // Elementos DOM
+        const nombreInput = document.getElementById('nombre');
+        const apellidosInput = document.getElementById('apellidos');
+        const emailInput = document.getElementById('email');
+        const telefonoInput = document.getElementById('telefono');
+        const idiomaDisplay = document.getElementById('idioma-display');
+        const nivelDisplay = document.getElementById('nivel-display');
+        const currentPasswordInput = document.getElementById('current-password');
+        const newPasswordInput = document.getElementById('new-password');
+        const confirmPasswordInput = document.getElementById('confirm-password');
+        const deactivateModal = document.getElementById('deactivate-modal');
+        const deleteModal = document.getElementById('delete-modal');
+        const deleteConfirmationInput = document.getElementById('delete-confirmation-input');
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+
+        // Función para mostrar toast
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            const bgColor = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500';
+            const icon = type === 'error' ? 'fa-exclamation-circle' : type === 'success' ? 'fa-check-circle' : 'fa-info-circle';
+            
+            toast.className = `${bgColor} text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 transform transition-all duration-300`;
+            toast.innerHTML = `
+                <i class="fas ${icon} text-lg"></i>
+                <span class="flex-1">${message}</span>
+                <button class="text-white/80 hover:text-white transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            const closeBtn = toast.querySelector('button');
+            closeBtn.addEventListener('click', () => {
+                toast.style.transform = 'translateX(100%)';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            });
+            
+            document.getElementById('toast-container').appendChild(toast);
+            
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.style.transform = 'translateX(100%)';
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 4000);
+        }
+
+        // Cargar datos del usuario
+        async function loadUserData() {
+            try {
+                const res = await fetch('http://localhost:5000/api/auth/perfil', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!res.ok) throw new Error('Error al cargar datos');
+
+                const data = await res.json();
+                const user = data.usuario;
+
+                // Llenar campos
+                nombreInput.value = user.nombre || '';
+                apellidosInput.value = `${user.primer_apellido || ''} ${user.segundo_apellido || ''}`.trim();
+                emailInput.value = user.correo || '';
+                telefonoInput.value = user.telefono || '';
+
+                // Datos académicos
+                if (user.datos_estudiante) {
+                    idiomaDisplay.textContent = user.datos_estudiante.idioma_aprendizaje || '-';
+                    nivelDisplay.textContent = user.datos_estudiante.nivel_actual || '-';
+                }
+
+                // Actualizar foto de perfil
+                const profilePhoto = document.getElementById('profile-photo');
+                if (user.foto_perfil && user.foto_perfil !== 'default-avatar.png') {
+                    profilePhoto.src = user.foto_perfil;
+                } else {
+                    profilePhoto.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nombre_completo || 'Usuario')}&background=9333ea&color=fff&size=128`;
+                }
+
+            } catch (error) {
+                showToast('Error al cargar los datos del perfil', 'error');
+            }
+        }
+
+        loadUserData();
+
+        // Guardar información personal
+        document.getElementById('personal-info-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('save-personal-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+
+            try {
+                // Aquí iría la llamada al backend para actualizar los datos
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Simulación
+
+                showToast('Información actualizada correctamente', 'success');
+            } catch (error) {
+                showToast('Error al guardar los cambios', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-save mr-2"></i>Guardar Cambios';
+            }
+        });
+
+        // Cambiar contraseña
+        document.getElementById('change-password-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (newPasswordInput.value !== confirmPasswordInput.value) {
+                showToast('Las contraseñas no coinciden', 'error');
+                return;
+            }
+
+            if (newPasswordInput.value.length < 8) {
+                showToast('La contraseña debe tener al menos 8 caracteres', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('change-password-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Cambiando...';
+
+            try {
+                // Aquí iría la llamada al backend
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Simulación
+
+                showToast('Contraseña actualizada correctamente', 'success');
+                currentPasswordInput.value = '';
+                newPasswordInput.value = '';
+                confirmPasswordInput.value = '';
+            } catch (error) {
+                showToast('Error al cambiar la contraseña', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-key mr-2"></i>Cambiar Contraseña';
+            }
+        });
+
+        // Desactivar cuenta
+        document.getElementById('deactivate-btn').addEventListener('click', () => {
+            deactivateModal.classList.remove('hidden');
+        });
+
+        document.getElementById('cancel-deactivate-btn').addEventListener('click', () => {
+            deactivateModal.classList.add('hidden');
+        });
+
+        document.getElementById('confirm-deactivate-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('confirm-deactivate-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Desactivando...';
+
+            try {
+                // Aquí iría la llamada al backend
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Simulación
+
+                showToast('Cuenta desactivada. Tienes 30 días para reactivarla.', 'success');
+                
+                setTimeout(() => {
+                    localStorage.clear();
+                    window.location.href = '/pages/auth/login.html';
+                }, 2000);
+            } catch (error) {
+                showToast('Error al desactivar la cuenta', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-pause mr-2"></i>Sí, Desactivar Mi Cuenta';
+            }
+        });
+
+        // Eliminar cuenta
+        document.getElementById('delete-btn').addEventListener('click', () => {
+            deleteModal.classList.remove('hidden');
+        });
+
+        document.getElementById('cancel-delete-btn').addEventListener('click', () => {
+            deleteModal.classList.add('hidden');
+            deleteConfirmationInput.value = '';
+            confirmDeleteBtn.disabled = true;
+        });
+
+        deleteConfirmationInput.addEventListener('input', (e) => {
+            confirmDeleteBtn.disabled = e.target.value !== 'ELIMINAR';
+        });
+
+        document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('confirm-delete-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Eliminando...';
+
+            try {
+                // Aquí iría la llamada al backend
+                await new Promise(resolve => setTimeout(resolve, 1500)); // Simulación
+
+                showToast('Cuenta eliminada permanentemente', 'success');
+                
+                setTimeout(() => {
+                    localStorage.clear();
+                    window.location.href = '/pages/auth/registro.html';
+                }, 2000);
+            } catch (error) {
+                showToast('Error al eliminar la cuenta', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-trash mr-2"></i>Sí, Eliminar Permanentemente';
+            }
+        });
+
+        // Logout
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.clear();
+            window.location.href = '/pages/auth/login.html';
+        });
+
+        // Theme toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        
+        if (localStorage.getItem('color-theme') === 'dark' || 
+            (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            themeIcon.classList.remove('fa-moon');
+            themeIcon.classList.add('fa-sun');
+        }
+        
+        themeToggle.addEventListener('click', function() {
+            themeIcon.classList.toggle('fa-moon');
+            themeIcon.classList.toggle('fa-sun');
+            document.documentElement.classList.toggle('dark');
+            
+            if (document.documentElement.classList.contains('dark')) {
+                localStorage.setItem('color-theme', 'dark');
+            } else {
+                localStorage.setItem('color-theme', 'light');
+            }
+        });
+    </script>
+</body>
+</html>

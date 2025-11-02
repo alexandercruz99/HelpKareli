@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cambiar Curso - SpeakLexi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                        },
+                        secondary: {
+                            50: '#faf5ff',
+                            100: '#f3e8ff',
+                            500: '#a855f7',
+                            600: '#9333ea',
+                            700: '#7c3aed',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 min-h-screen transition-colors duration-300">
+    <!-- Navbar -->
+    <nav class="fixed w-full z-50 bg-white dark:bg-gray-800 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-4">
+                    <a href="/pages/estudiante/dashboard-estudiante.html" class="flex items-center space-x-2">
+                        <div class="w-8 h-8 bg-gradient-to-r from-secondary-600 to-primary-600 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-comments text-white text-sm"></i>
+                        </div>
+                        <h1 class="text-xl font-bold bg-gradient-to-r from-secondary-600 to-primary-600 bg-clip-text text-transparent">
+                            SpeakLexi
+                        </h1>
+                    </a>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <button id="theme-toggle" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                        <i class="fas fa-moon text-gray-600 dark:text-yellow-400" id="theme-icon"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="pt-20 pb-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header -->
+            <div class="mb-8">
+                <a href="/pages/estudiante/perfil.html" class="inline-flex items-center text-primary-600 dark:text-primary-400 hover:underline mb-4">
+                    <i class="fas fa-arrow-left mr-2"></i>Volver al Perfil
+                </a>
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Cambiar Curso</h1>
+                <p class="text-gray-600 dark:text-gray-400 mt-2">Modifica tu idioma de aprendizaje o tu nivel actual</p>
+            </div>
+
+            <!-- Información Actual -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-8 mb-6">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Tu Configuración Actual</h2>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="p-6 bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900/30 dark:to-primary-800/30 rounded-xl border-2 border-primary-200 dark:border-primary-700">
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-sm font-medium text-primary-700 dark:text-primary-300">Idioma Actual</p>
+                            <i class="fas fa-globe text-2xl text-primary-600 dark:text-primary-400"></i>
+                        </div>
+                        <p class="text-3xl font-bold text-primary-600 dark:text-primary-400" id="current-idioma">-</p>
+                    </div>
+                    <div class="p-6 bg-gradient-to-br from-secondary-50 to-secondary-100 dark:from-secondary-900/30 dark:to-secondary-800/30 rounded-xl border-2 border-secondary-200 dark:border-secondary-700">
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-sm font-medium text-secondary-700 dark:text-secondary-300">Nivel Actual</p>
+                            <i class="fas fa-chart-line text-2xl text-secondary-600 dark:text-secondary-400"></i>
+                        </div>
+                        <p class="text-3xl font-bold text-secondary-600 dark:text-secondary-400" id="current-nivel">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario de Cambio -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-8">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Cambiar Configuración</h2>
+                
+                <form id="change-course-form" class="space-y-8">
+                    <!-- Seleccionar Idioma -->
+                    <div>
+                        <label class="block text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                            <i class="fas fa-globe text-primary-600 mr-2"></i>Selecciona tu Idioma
+                        </label>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="idioma" value="Inglés" class="peer hidden" />
+                                <div class="p-6 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-primary-300 dark:hover:border-primary-600 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/20 transition-all">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-3">
+                                            <span class="text-3xl">🇬🇧</span>
+                                            <div>
+                                                <p class="font-semibold text-gray-900 dark:text-white">Inglés</p>
+                                                <p class="text-sm text-gray-500 dark:text-gray-400">English</p>
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-check-circle text-2xl text-gray-300 dark:text-gray-600 peer-checked:text-primary-600"></i>
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="idioma" value="Francés" class="peer hidden" />
+                                <div class="p-6 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-primary-300 dark:hover:border-primary-600 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/20 transition-all">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-3">
+                                            <span class="text-3xl">🇫🇷</span>
+                                            <div>
+                                                <p class="font-semibold text-gray-900 dark:text-white">Francés</p>
+                                                <p class="text-sm text-gray-500 dark:text-gray-400">Français</p>
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-check-circle text-2xl text-gray-300 dark:text-gray-600 peer-checked:text-primary-600"></i>
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="idioma" value="Alemán" class="peer hidden" />
+                                <div class="p-6 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-primary-300 dark:hover:border-primary-600 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/20 transition-all">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-3">
+                                            <span class="text-3xl">🇩🇪</span>
+                                            <div>
+                                                <p class="font-semibold text-gray-900 dark:text-white">Alemán</p>
+                                                <p class="text-sm text-gray-500 dark:text-gray-400">Deutsch</p>
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-check-circle text-2xl text-gray-300 dark:text-gray-600 peer-checked:text-primary-600"></i>
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="idioma" value="Italiano" class="peer hidden" />
+                                <div class="p-6 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-primary-300 dark:hover:border-primary-600 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/20 transition-all">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-3">
+                                            <span class="text-3xl">🇮🇹</span>
+                                            <div>
+                                                <p class="font-semibold text-gray-900 dark:text-white">Italiano</p>
+                                                <p class="text-sm text-gray-500 dark:text-gray-400">Italiano</p>
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-check-circle text-2xl text-gray-300 dark:text-gray-600 peer-checked:text-primary-600"></i>
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="idioma" value="Portugués" class="peer hidden" />
+                                <div class="p-6 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-primary-300 dark:hover:border-primary-600 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/20 transition-all">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-3">
+                                            <span class="text-3xl">🇵🇹</span>
+                                            <div>
+                                                <p class="font-semibold text-gray-900 dark:text-white">Portugués</p>
+                                                <p class="text-sm text-gray-500 dark:text-gray-400">Português</p>
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-check-circle text-2xl text-gray-300 dark:text-gray-600 peer-checked:text-primary-600"></i>
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="idioma" value="Japonés" class="peer hidden" />
+                                <div class="p-6 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-primary-300 dark:hover:border-primary-600 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/20 transition-all">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-3">
+                                            <span class="text-3xl">🇯🇵</span>
+                                            <div>
+                                                <p class="font-semibold text-gray-900 dark:text-white">Japonés</p>
+                                                <p class="text-sm text-gray-500 dark:text-gray-400">日本語</p>
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-check-circle text-2xl text-gray-300 dark:text-gray-600 peer-checked:text-primary-600"></i>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Seleccionar Nivel -->
+                    <div>
+                        <label class="block text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                            <i class="fas fa-chart-line text-secondary-600 mr-2"></i>Selecciona tu Nivel
+                        </label>
+                        <div class="grid md:grid-cols-3 gap-4">
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="nivel" value="A1" class="peer hidden" />
+                                <div class="p-6 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-secondary-300 dark:hover:border-secondary-600 peer-checked:border-secondary-500 peer-checked:bg-secondary-50 dark:peer-checked:bg-secondary-900/20 transition-all">
+                                    <div class="text-center">
+                                        <p class="text-2xl font-bold text-gray-900 dark:text-white mb-1">A1</p>
+                                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Principiante</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Empezando desde cero</p>
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="nivel" value="A2" class="peer hidden" />
+                                <div class="p-6 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-secondary-300 dark:hover:border-secondary-600 peer-checked:border-secondary-500 peer-checked:bg-secondary-50 dark:peer-checked:bg-secondary-900/20 transition-all">
+                                    <div class="text-center">
+                                        <p class="text-2xl font-bold text-gray-900 dark:text-white mb-1">A2</p>
+                                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Elemental</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Conocimientos básicos</p>
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="nivel" value="B1" class="peer hidden" />
+                                <div class="p-6 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-secondary-300 dark:hover:border-secondary-600 peer-checked:border-secondary-500 peer-checked:bg-secondary-50 dark:peer-checked:bg-secondary-900/20 transition-all">
+                                    <div class="text-center">
+                                        <p class="text-2xl font-bold text-gray-900 dark:text-white mb-1">B1</p>
+                                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Intermedio</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Conversación cotidiana</p>
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="nivel" value="B2" class="peer hidden" />
+                                <div class="p-6 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-secondary-300 dark:hover:border-secondary-600 peer-checked:border-secondary-500 peer-checked:bg-secondary-50 dark:peer-checked:bg-secondary-900/20 transition-all">
+                                    <div class="text-center">
+                                        <p class="text-2xl font-bold text-gray-900 dark:text-white mb-1">B2</p>
+                                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Intermedio Alto</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Fluidez general</p>
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="nivel" value="C1" class="peer hidden" />
+                                <div class="p-6 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-secondary-300 dark:hover:border-secondary-600 peer-checked:border-secondary-500 peer-checked:bg-secondary-50 dark:peer-checked:bg-secondary-900/20 transition-all">
+                                    <div class="text-center">
+                                        <p class="text-2xl font-bold text-gray-900 dark:text-white mb-1">C1</p>
+                                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Avanzado</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Dominio del idioma</p>
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="nivel" value="C2" class="peer hidden" />
+                                <div class="p-6 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-secondary-300 dark:hover:border-secondary-600 peer-checked:border-secondary-500 peer-checked:bg-secondary-50 dark:peer-checked:bg-secondary-900/20 transition-all">
+                                    <div class="text-center">
+                                        <p class="text-2xl font-bold text-gray-900 dark:text-white mb-1">C2</p>
+                                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Maestría</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Nivel nativo</p>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Advertencia -->
+                    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4">
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-exclamation-triangle text-yellow-600 dark:text-yellow-400 mt-0.5"></i>
+                            <div>
+                                <p class="text-sm font-medium text-yellow-900 dark:text-yellow-100 mb-1">Importante</p>
+                                <p class="text-sm text-yellow-800 dark:text-yellow-200">
+                                    Al cambiar tu curso o nivel, tu progreso actual se mantendrá, pero las lecciones disponibles cambiarán según tu nueva selección.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botones -->
+                    <div class="flex gap-4">
+                        <a href="/pages/estudiante/perfil.html" class="flex-1 px-6 py-4 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-all text-center">
+                            Cancelar
+                        </a>
+                        <button
+                            type="submit"
+                            id="submit-btn"
+                            class="flex-1 px-6 py-4 bg-gradient-to-r from-secondary-600 to-primary-600 text-white rounded-xl font-semibold hover:from-secondary-700 hover:to-primary-700 transition-all"
+                        >
+                            <i class="fas fa-save mr-2"></i>Guardar Cambios
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-20 right-4 z-50 space-y-2 max-w-sm w-full"></div>
+
+    <script type="module">
+        // Verificar autenticación
+        const usuario = JSON.parse(localStorage.getItem('usuario') || 'null');
+        const token = localStorage.getItem('token');
+
+        if (!usuario || !token) {
+            window.location.href = '/pages/auth/login.html';
+        }
+
+        // Función para mostrar toast
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            const bgColor = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500';
+            const icon = type === 'error' ? 'fa-exclamation-circle' : type === 'success' ? 'fa-check-circle' : 'fa-info-circle';
+            
+            toast.className = `${bgColor} text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 transform transition-all duration-300`;
+            toast.innerHTML = `
+                <i class="fas ${icon} text-lg"></i>
+                <span class="flex-1">${message}</span>
+                <button class="text-white/80 hover:text-white transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            const closeBtn = toast.querySelector('button');
+            closeBtn.addEventListener('click', () => {
+                toast.style.transform = 'translateX(100%)';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            });
+            
+            document.getElementById('toast-container').appendChild(toast);
+            
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.style.transform = 'translateX(100%)';
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 4000);
+        }
+
+        // Cargar datos actuales
+        async function loadCurrentData() {
+            try {
+                const res = await fetch('http://localhost:5000/api/auth/perfil', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!res.ok) throw new Error('Error al cargar datos');
+
+                const data = await res.json();
+                const user = data.usuario;
+
+                if (user.datos_estudiante) {
+                    const idioma = user.datos_estudiante.idioma_aprendizaje || '-';
+                    const nivel = user.datos_estudiante.nivel_actual || '-';
+                    
+                    document.getElementById('current-idioma').textContent = idioma;
+                    document.getElementById('current-nivel').textContent = nivel;
+
+                    // Pre-seleccionar valores actuales
+                    const idiomaInput = document.querySelector(`input[name="idioma"][value="${idioma}"]`);
+                    const nivelInput = document.querySelector(`input[name="nivel"][value="${nivel}"]`);
+                    
+                    if (idiomaInput) idiomaInput.checked = true;
+                    if (nivelInput) nivelInput.checked = true;
+                }
+            } catch (error) {
+                showToast('Error al cargar los datos actuales', 'error');
+            }
+        }
+
+        loadCurrentData();
+
+        // Manejar submit del formulario
+        document.getElementById('change-course-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const idiomaSeleccionado = document.querySelector('input[name="idioma"]:checked');
+            const nivelSeleccionado = document.querySelector('input[name="nivel"]:checked');
+
+            if (!idiomaSeleccionado || !nivelSeleccionado) {
+                showToast('Por favor selecciona idioma y nivel', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+
+            try {
+                const res = await fetch('http://localhost:5000/api/auth/actualizar-nivel', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        correo: usuario.correo,
+                        nivel: nivelSeleccionado.value,
+                        idioma: idiomaSeleccionado.value
+                    })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.error || 'Error al actualizar');
+
+                showToast('¡Curso actualizado exitosamente!', 'success');
+
+                // Actualizar localStorage
+                if (usuario.datos_estudiante) {
+                    usuario.datos_estudiante.idioma_aprendizaje = idiomaSeleccionado.value;
+                    usuario.datos_estudiante.nivel_actual = nivelSeleccionado.value;
+                    localStorage.setItem('usuario', JSON.stringify(usuario));
+                }
+
+                setTimeout(() => {
+                    window.location.href = '/pages/estudiante/perfil.html';
+                }, 1500);
+
+            } catch (error) {
+                showToast(error.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-save mr-2"></i>Guardar Cambios';
+            }
+        });
+
+        // Theme toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        
+        if (localStorage.getItem('color-theme') === 'dark' || 
+            (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            themeIcon.classList.remove('fa-moon');
+            themeIcon.classList.add('fa-sun');
+        }
+        
+        themeToggle.addEventListener('click', function() {
+            themeIcon.classList.toggle('fa-moon');
+            themeIcon.classList.toggle('fa-sun');
+            document.documentElement.classList.toggle('dark');
+            
+            if (document.documentElement.classList.contains('dark')) {
+                localStorage.setItem('color-theme', 'dark');
+            } else {
+                localStorage.setItem('color-theme', 'light');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 // ==========================================================
-// backend/routes/auth-routes.js - VERSIÓN FINAL SIN ERRORES
+// backend/routes/auth-routes.js - VERSIÓN CORREGIDA ONBOARDING
 // ==========================================================
 
 const express = require('express');
@@ -356,6 +356,11 @@ router.post('/login', validacionesLogin, authController.iniciarSesion);
 router.post('/recuperar-contrasena', validacionesRecuperarPassword, authController.solicitarRecuperacionContrasena);
 router.post('/restablecer-contrasena', validacionesRestablecerPassword, authController.restablecerContrasena);
 
+// ✅✅✅ CORRECCIÓN CRÍTICA: Actualización de nivel SIN AUTENTICACIÓN para onboarding
+// El usuario aún no tiene token JWT durante el proceso de onboarding
+// La validación se hace con el correo en el body del request
+router.patch('/actualizar-nivel', validacionesActualizarNivel, authController.actualizarNivel);
+
 // ==========================================================
 // RUTAS PROTEGIDAS (CON AUTENTICACIÓN)
 // ==========================================================
@@ -364,15 +369,6 @@ router.post('/restablecer-contrasena', validacionesRestablecerPassword, authCont
 router.get('/verificar-token', authMiddleware.verificarToken, authController.verificarToken);
 router.get('/perfil', authMiddleware.verificarToken, authController.obtenerPerfil);
 router.post('/logout', authMiddleware.verificarToken, authController.cerrarSesion);
-
-// Actualización de nivel (solo para estudiantes verificados)
-router.patch(
-  '/actualizar-nivel', 
-  authMiddleware.verificarToken,
-  authMiddleware.verificarEmail,
-  validacionesActualizarNivel, 
-  authController.actualizarNivel
-);
 
 // ==========================================================
 // RUTAS DE UTILIDAD Y DIAGNÓSTICO
@@ -390,7 +386,7 @@ router.get('/health', (req, res) => {
       used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
       total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + 'MB'
     },
-    database: 'Connected' // Podrías hacer un ping real aquí
+    database: 'Connected'
   };
   
   res.json(health);
@@ -424,7 +420,7 @@ router.get('/config', (req, res) => {
       multi_language_support: true,
       level_assessment: true,
       profile_management: true,
-      refresh_tokens: false // Por implementar
+      refresh_tokens: false
     },
     security: {
       max_login_attempts: 5,
@@ -438,13 +434,13 @@ router.get('/config', (req, res) => {
         'POST /api/auth/verificar',
         'POST /api/auth/recuperar-contrasena',
         'POST /api/auth/restablecer-contrasena',
-        'POST /api/auth/reenviar-verificacion'
+        'POST /api/auth/reenviar-verificacion',
+        'PATCH /api/auth/actualizar-nivel'
       ],
       private: [
         'GET /api/auth/verificar-token',
         'GET /api/auth/perfil',
-        'POST /api/auth/logout',
-        'PATCH /api/auth/actualizar-nivel'
+        'POST /api/auth/logout'
       ],
       utility: [
         'GET /api/auth/health',
@@ -507,6 +503,20 @@ router.get('/docs', (req, res) => {
           400: 'Código inválido o expirado'
         }
       },
+      'PATCH /actualizar-nivel': {
+        description: 'Actualizar nivel del estudiante (usado durante onboarding)',
+        authentication: false,
+        body: {
+          correo: 'email (requerido)',
+          nivel: 'string (requerido: A1, A2, B1, B2, C1, C2)',
+          idioma: 'string (opcional)'
+        },
+        response: {
+          200: 'Nivel actualizado exitosamente',
+          403: 'Email no verificado o rol inválido',
+          404: 'Usuario no encontrado'
+        }
+      },
       'GET /perfil': {
         description: 'Obtener perfil del usuario autenticado',
         authentication: true,
@@ -537,6 +547,7 @@ router.use((req, res) => {
       'POST /api/auth/login',
       'POST /api/auth/verificar',
       'POST /api/auth/recuperar-contrasena',
+      'PATCH /api/auth/actualizar-nivel',
       'GET /api/auth/verificar-token',
       'GET /api/auth/health',
       'GET /api/auth/config',

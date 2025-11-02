@@ -1,5 +1,5 @@
 // ==========================================================
-// backend/middleware/authMiddleware.js
+// backend/middleware/authMiddleware.js - CORREGIDO
 // Middleware de autenticación y autorización
 // ==========================================================
 
@@ -45,9 +45,9 @@ const verificarToken = async (req, res, next) => {
         
         console.log('✅ Token verificado para usuario:', decoded.id);
 
-        // Verificar si el usuario aún existe en la base de datos
+        // CORREGIDO: usar correo_verificado en lugar de email_verificado
         const [usuarios] = await database.query(
-            `SELECT id, nombre, primer_apellido, correo, rol, estado_cuenta, email_verificado 
+            `SELECT id, nombre, primer_apellido, correo, rol, estado_cuenta, correo_verificado 
              FROM usuarios 
              WHERE id = ?`,
             [decoded.id]
@@ -165,6 +165,7 @@ const verificarRol = (...rolesPermitidos) => {
  * Middleware para verificar que el email del usuario esté verificado
  * @desc Requiere que verificarToken se ejecute primero
  * @access Private
+ * CORREGIDO: usar correo_verificado en lugar de email_verificado
  */
 const verificarEmail = (req, res, next) => {
     // Verificar que el usuario esté autenticado
@@ -175,8 +176,8 @@ const verificarEmail = (req, res, next) => {
         });
     }
 
-    // Verificar si el email está verificado
-    if (!req.user.email_verificado) {
+    // CORREGIDO: verificar correo_verificado en lugar de email_verificado
+    if (!req.user.correo_verificado) {
         console.log(`❌ Email no verificado para usuario: ${req.user.id}`);
         
         return res.status(403).json({

@@ -1,6 +1,6 @@
-# RAW LINKS — Actualizado 2025-11-01 22:15:05
+# RAW LINKS — Actualizado 2025-11-02 09:44:20
 # Repositorio: sTr4yDev/speakLexi2.0
-# Commit: 4c64269d8efa9ba07a3eb59a8aec5e938dd25b62
+# Commit: 31d37634879ac60337a443a957b18221cc7ffb47
 
 ========================= BACKEND LINKS =========================
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/config/database.js
@@ -17,6 +17,7 @@ https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/
 ========================= FRONTEND LINKS =========================
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/controllers/authController.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/middleware/auth.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/middleware/authMiddleware.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/middleware/validator.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/package.json
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/services/emailService.js

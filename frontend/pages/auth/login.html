@@ -63,7 +63,6 @@
     </style>
 </head>
 <body class="bg-white dark:bg-gray-900 transition-colors duration-300 min-h-screen">
-    <!-- Navbar -->
     <nav class="fixed w-full z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
@@ -79,7 +78,6 @@
                 </div>
                 
                 <div class="flex items-center space-x-4">
-                    <!-- Botón Dark/Light -->
                     <button id="theme-toggle" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                         <i class="fas fa-moon text-gray-600 dark:text-yellow-400" id="theme-icon"></i>
                     </button>
@@ -97,10 +95,8 @@
         </div>
     </nav>
 
-    <!-- Main Content -->
     <div class="min-h-screen flex items-center justify-center p-4 pt-20">
         <div class="max-w-md w-full animate-fade-in">
-            <!-- Logo Header -->
             <div class="text-center mb-8">
                 <div class="w-16 h-16 bg-gradient-to-r from-secondary-600 to-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                     <i class="fas fa-comments text-white text-2xl"></i>
@@ -113,9 +109,7 @@
                 </p>
             </div>
 
-            <!-- Login Card -->
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-8">
-                <!-- Alerta de error -->
                 <div id="error-alert" class="hidden mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg animate-slide-in">
                     <div class="flex items-start gap-3">
                         <i class="fas fa-exclamation-circle text-red-600 dark:text-red-400 mt-0.5"></i>
@@ -123,7 +117,6 @@
                     </div>
                 </div>
 
-                <!-- Alerta de cuenta desactivada -->
                 <div id="deactivated-alert" class="hidden mb-4 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg animate-slide-in">
                     <div class="flex items-start gap-3">
                         <i class="fas fa-refresh text-orange-600 dark:text-orange-400 mt-0.5"></i>
@@ -137,7 +130,6 @@
                     </div>
                 </div>
 
-                <!-- Usuarios de prueba -->
                 <div class="mb-6 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-gray-50 dark:bg-gray-900/50">
                     <button id="toggle-test-users" type="button" class="w-full flex items-center justify-between p-4 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                         <span class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
@@ -147,11 +139,9 @@
                         <i id="toggle-icon" class="fas fa-chevron-down text-gray-500 transition-transform"></i>
                     </button>
                     <div id="test-users-container" class="hidden p-4 space-y-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-                        <!-- Usuarios se cargan aquí -->
-                    </div>
+                        </div>
                 </div>
 
-                <!-- Formulario -->
                 <form id="login-form" class="space-y-6">
                     <div>
                         <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -223,7 +213,6 @@
                 </div>
             </div>
 
-            <!-- Additional Info -->
             <div class="mt-8 text-center">
                 <div class="grid grid-cols-3 gap-4 text-xs text-gray-500 dark:text-gray-400">
                     <div class="flex items-center justify-center gap-1">
@@ -243,7 +232,6 @@
         </div>
     </div>
 
-    <!-- Toast Container -->
     <div id="toast-container" class="fixed top-20 right-4 z-50 space-y-2 max-w-sm w-full"></div>
 
     <script type="module">
@@ -478,29 +466,35 @@
                     return;
                 }
 
+                // ===================================
+                // INICIO DE LA CORRECCIÓN APLICADA
+                // ===================================
                 const usuario = data.usuario;
-                const access_token = data.access_token;
+                const token = data.token; // <-- CORREGIDO (antes era access_token)
 
-                if (!usuario || !access_token) {
+                if (!usuario || !token) { // <-- CORREGIDO (antes era access_token)
                     throw new Error('Respuesta inválida del servidor');
                 }
 
                 // Guardar en localStorage
                 localStorage.setItem('usuario', JSON.stringify(usuario));
-                localStorage.setItem('token', access_token);
+                localStorage.setItem('token', token); // <-- CORREGIDO (antes era access_token)
+                // ===================================
+                // FIN DE LA CORRECCIÓN APLICADA
+                // ===================================
 
                 showToast(`✅ ¡Bienvenido ${usuario.nombre}!`, 'success');
 
                 // Redirección según rol
                 const rol = usuario.rol?.toLowerCase() || 'estudiante';
-                let redirectPath = 'estudiante-dashboard.html';
+                let redirectPath = '/pages/estudiante/estudiante-dashboard.html';
 
                 if (rol === 'admin' || rol === 'administrador') {
-                    redirectPath = 'admin-dashboard.html';
+                    redirectPath = '/pages/admin/admin-dashboard.html';
                 } else if (rol === 'profesor' || rol === 'teacher') {
                     redirectPath = 'profesor-dashboard.html';
                 } else if (rol === 'mantenimiento' || rol === 'maintenance') {
-                    redirectPath = 'mantenimiento-dashboard.html';
+                    redirectPath = 'pages/mantenimiento/mantenimiento-dashboard.html';
                 }
 
                 setTimeout(() => window.location.href = redirectPath, 1000);
@@ -518,7 +512,6 @@
         });
     </script>
 
-    <!-- Script para el tema oscuro/claro -->
     <script>
         // Toggle tema oscuro/claro
         const themeToggle = document.getElementById('theme-toggle');
