@@ -127,7 +127,7 @@
         {
             name: "Admin Demo",
             email: "admin@speaklexi.com",
-            password: "admin123",
+            password: "Admin123!",
             role: "admin",
             description: "Gestión de contenido y lecciones",
             color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"

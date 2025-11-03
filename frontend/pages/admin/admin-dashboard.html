@@ -1,3 +1,6 @@
+<!--
+frontend/pages/admin-dashboard.html
+-->
 <!DOCTYPE html>
 <html lang="es" class="h-full">
 <head>
@@ -397,22 +400,24 @@
     </main>
 
     <!-- ============================================
-         ORDEN DE CARGA OPTIMIZADO (CRÍTICO)
+         ORDEN DE CARGA CORREGIDO (FIXED)
     ============================================ -->
     
     <!-- 1️⃣ CONFIGURACIÓN GLOBAL (SIEMPRE PRIMERO) -->
     <script src="/config/app-config.js"></script>
     
-    <!-- 2️⃣ CORE MODULES (async para no bloquear) -->
-    <script src="/assets/js/core/utils.js" async></script>
-    <script src="/assets/js/core/api-client.js" async></script>
-    <script src="/assets/js/core/form-validator.js" async></script>
-    <script src="/assets/js/core/theme-manager.js" async></script>
-    <script src="/assets/js/core/toast-manager.js" async></script>
-    <script src="/assets/js/core/module-loader.js"></script>
-    <script src="/assets/js/core/navbar-loader.js" async></script>
+    <!-- 2️⃣ CORE MODULES (síncrono para dependencias) -->
+    <script src="/assets/js/core/utils.js"></script>
+    <script src="/assets/js/core/api-client.js"></script>
+    <script src="/assets/js/core/form-validator.js"></script>
+    <script src="/assets/js/core/theme-manager.js"></script>
+    <script src="/assets/js/core/toast-manager.js"></script>
     
-    <!-- 3️⃣ LÓGICA DE PÁGINA (defer para DOM listo) -->
-    <script src="/assets/js/pages/admin/dashboard.js" defer></script>
+    <!-- 3️⃣ MÓDULOS ADICIONALES -->
+    <script src="/assets/js/core/module-loader.js"></script>
+    <script src="/assets/js/core/navbar-loader.js"></script>
+    
+    <!-- 4️⃣ LÓGICA DE PÁGINA (al final) -->
+    <script src="/assets/js/pages/admin/dashboard.js"></script>
 </body>
 </html>

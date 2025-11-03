@@ -1,13 +1,17 @@
-# RAW LINKS — Actualizado 2025-11-03 10:14:35
+# RAW LINKS — Actualizado 2025-11-03 12:07:17
 # Repositorio: sTr4yDev/speakLexi2.0
-# Commit: 4ce6577c8bf03ee2993841705d217e7fe16e622d
+# Commit: bea3ee9ba534888e0157bb060bf1a724739282ca
 
 ========================= BACKEND LINKS =========================
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/config/database.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/config/email.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/config/jwt.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/models/lecciones.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/models/multimedia.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/models/usuario.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/routes/auth-routes.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/routes/leccion-routesee.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/routes/multimedia-routes.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/server.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/docs/utils/generar-links.py
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/assets/js/core/api-client.js
@@ -19,8 +23,11 @@ https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/
 
 ========================= FRONTEND LINKS =========================
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/controllers/authController.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/controllers/leccionController.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/controllers/multimediaController.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/middleware/auth.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/middleware/authMiddleware.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/middleware/uploadMiddleware.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/middleware/validator.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/package.json
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/services/emailService.js
@@ -34,6 +41,8 @@ https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/assets/js/
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/assets/js/core/theme-manager.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/assets/js/core/toast-manager.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/assets/js/core/utils.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/assets/js/pages/admin/dashboard.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/assets/js/pages/admin/gestion-lecciones.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/assets/js/pages/auth/login.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/assets/js/pages/auth/registro.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/assets/js/pages/auth/verificar-email.js
@@ -44,6 +53,7 @@ https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/assets/js/
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/diag.html
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/index.html
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/admin/dashboard-admin.html
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/admin/gestion-lecciones.html
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/auth/login.html
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/auth/recuperar-contrasena.html
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/auth/registro.html
