@@ -28,7 +28,6 @@ exports.crear = async (datosLeccion) => {
             datosLeccion.creado_por
         ];
 
-        // ✅ Usar pool.execute en lugar de db.execute
         const [resultado] = await pool.execute(query, valores);
         
         return resultado.insertId;
@@ -63,10 +62,14 @@ exports.obtenerPorId = async (id) => {
 
 /**
  * Listar TODAS las lecciones (para admin)
+ * 🔧 CORREGIDO: Bug MySQL 8.0.22+ - Convertir LIMIT/OFFSET a strings
  */
 exports.listarTodas = async (pagina = 1, limite = 50, filtros = {}) => {
     try {
-        const offset = (pagina - 1) * limite;
+        // ✅ Convertir a números enteros primero
+        const paginaNum = parseInt(pagina, 10) || 1;
+        const limiteNum = parseInt(limite, 10) || 50;
+        const offset = (paginaNum - 1) * limiteNum;
         
         let whereConditions = [];
         let params = [];
@@ -100,7 +103,9 @@ exports.listarTodas = async (pagina = 1, limite = 50, filtros = {}) => {
             LIMIT ? OFFSET ?
         `;
 
-        params.push(limite, offset);
+        // 🔥 SOLUCIÓN: Convertir a STRING para evitar bug MySQL 8.0.22+
+        // MySQL espera INT pero mysql2 envía DOUBLE, convertir a string funciona
+        params.push(String(limiteNum), String(offset));
         const [lecciones] = await pool.execute(query, params);
 
         // Obtener total de registros
@@ -115,10 +120,10 @@ exports.listarTodas = async (pagina = 1, limite = 50, filtros = {}) => {
         return {
             lecciones,
             paginacion: {
-                pagina_actual: pagina,
-                por_pagina: limite,
+                pagina_actual: paginaNum,
+                por_pagina: limiteNum,
                 total: totalRows[0].total,
-                total_paginas: Math.ceil(totalRows[0].total / limite)
+                total_paginas: Math.ceil(totalRows[0].total / limiteNum)
             }
         };
     } catch (error) {
@@ -132,7 +137,10 @@ exports.listarTodas = async (pagina = 1, limite = 50, filtros = {}) => {
  */
 exports.listarPorNivel = async (nivel, idioma, pagina = 1, limite = 10) => {
     try {
-        const offset = (pagina - 1) * limite;
+        // ✅ Convertir a números enteros
+        const paginaNum = parseInt(pagina, 10) || 1;
+        const limiteNum = parseInt(limite, 10) || 10;
+        const offset = (paginaNum - 1) * limiteNum;
         
         const query = `
             SELECT l.*, 
@@ -147,7 +155,13 @@ exports.listarPorNivel = async (nivel, idioma, pagina = 1, limite = 10) => {
             LIMIT ? OFFSET ?
         `;
 
-        const [lecciones] = await pool.execute(query, [nivel, idioma, limite, offset]);
+        // 🔥 SOLUCIÓN: Convertir a STRING
+        const [lecciones] = await pool.execute(query, [
+            nivel, 
+            idioma, 
+            String(limiteNum), 
+            String(offset)
+        ]);
 
         // Obtener total de registros
         const [totalRows] = await pool.execute(
@@ -158,10 +172,10 @@ exports.listarPorNivel = async (nivel, idioma, pagina = 1, limite = 10) => {
         return {
             lecciones,
             paginacion: {
-                pagina_actual: pagina,
-                por_pagina: limite,
+                pagina_actual: paginaNum,
+                por_pagina: limiteNum,
                 total: totalRows[0].total,
-                total_paginas: Math.ceil(totalRows[0].total / limite)
+                total_paginas: Math.ceil(totalRows[0].total / limiteNum)
             }
         };
     } catch (error) {

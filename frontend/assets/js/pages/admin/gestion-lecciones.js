@@ -15,7 +15,7 @@
         await waitForDependencies();
         
         if (!verificarPermisosAdmin()) {
-            return; // Detener si no tiene permisos
+            return;
         }
         
         setupEventListeners();
@@ -25,23 +25,15 @@
     }
 
     function setupEventListeners() {
-        // Botones principales
         document.getElementById('btn-crear-leccion')?.addEventListener('click', mostrarModalCrear);
         document.getElementById('btn-refrescar')?.addEventListener('click', cargarLecciones);
-        
-        // Modal crear lección
         document.getElementById('btn-cancelar-crear')?.addEventListener('click', ocultarModalCrear);
         document.getElementById('btn-guardar-leccion')?.addEventListener('click', crearLeccion);
-        
-        // Filtros
         document.getElementById('buscar-leccion')?.addEventListener('input', filtrarLecciones);
         document.getElementById('filtro-nivel')?.addEventListener('change', filtrarLecciones);
-        
-        // Paginación
         document.getElementById('btn-prev')?.addEventListener('click', () => cambiarPagina(-1));
         document.getElementById('btn-next')?.addEventListener('click', () => cambiarPagina(1));
         
-        // Enter para buscar
         document.getElementById('buscar-leccion')?.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 filtrarLecciones();
@@ -53,23 +45,39 @@
         try {
             mostrarLoading(true);
             
-            // Usar endpoint correcto de APP_CONFIG
             const endpoint = window.APP_CONFIG?.API?.ENDPOINTS?.LECCIONES?.LISTAR || '/lecciones';
             const response = await window.apiClient.get(endpoint);
             
+            console.log('📦 Respuesta completa:', response);
+            
             if (response.success) {
-                leccionesData = response.data || [];
+                // 🔧 CORRECCIÓN: response.data contiene {success, data, paginacion}
+                // El array de lecciones está en response.data.data
+                const serverData = response.data;
+                
+                // Verificar estructura de la respuesta
+                if (serverData.data && Array.isArray(serverData.data)) {
+                    leccionesData = serverData.data;
+                    console.log('✅ Lecciones cargadas del servidor:', leccionesData.length);
+                } else if (Array.isArray(serverData)) {
+                    // Fallback: si data es directamente un array
+                    leccionesData = serverData;
+                    console.log('✅ Lecciones cargadas (estructura alternativa):', leccionesData.length);
+                } else {
+                    console.warn('⚠️ Estructura de respuesta inesperada:', serverData);
+                    throw new Error('Estructura de datos incorrecta');
+                }
+                
                 actualizarEstadisticas();
                 mostrarLecciones();
-                window.toastManager.success('Lecciones cargadas correctamente');
+                window.toastManager.success(`${leccionesData.length} lecciones cargadas correctamente`);
             } else {
                 throw new Error(response.error || 'Error al cargar lecciones');
             }
         } catch (error) {
-            console.warn('⚠️ Error cargando lecciones, usando datos de demostración:', error);
+            console.warn('⚠️ Error cargando lecciones:', error);
             window.toastManager.warning('Usando datos de demostración. Servidor no disponible.');
             
-            // Datos de demostración
             leccionesData = obtenerLeccionesDemo();
             actualizarEstadisticas();
             mostrarLecciones();
@@ -120,6 +128,13 @@
     }
 
     function actualizarEstadisticas() {
+        // 🔧 VALIDACIÓN: Asegurar que leccionesData es un array
+        if (!Array.isArray(leccionesData)) {
+            console.error('❌ leccionesData no es un array:', typeof leccionesData, leccionesData);
+            leccionesData = [];
+            return;
+        }
+        
         const total = leccionesData.length;
         const activas = leccionesData.filter(l => l.estado === 'activa').length;
         const borrador = leccionesData.filter(l => l.estado === 'borrador').length;
@@ -285,7 +300,6 @@
         
         const formData = new FormData(form);
         
-        // Validar campos requeridos
         const titulo = formData.get('titulo');
         const nivel = formData.get('nivel');
         const idioma = formData.get('idioma');
@@ -309,18 +323,22 @@
         try {
             mostrarLoading(true);
             
-            // Usar endpoint correcto de APP_CONFIG
             const endpoint = window.APP_CONFIG?.API?.ENDPOINTS?.LECCIONES?.CREAR || '/lecciones';
             const response = await window.apiClient.post(endpoint, datosLeccion);
+            
+            console.log('📦 Respuesta crear lección:', response);
             
             if (response.success) {
                 window.toastManager.success('Lección creada exitosamente');
                 ocultarModalCrear();
                 await cargarLecciones();
                 
-                // Redirigir al editor para continuar editando
+                // Redirigir al editor
                 setTimeout(() => {
-                    const leccionId = response.data?.id || response.data?.leccion_id;
+                    // 🔧 CORRECCIÓN: response.data contiene {success, data, mensaje}
+                    const serverData = response.data;
+                    const leccionId = serverData.data?.id || serverData.data?.leccion_id;
+                    
                     if (leccionId) {
                         window.location.href = `/pages/admin/editor-leccion.html?id=${leccionId}`;
                     }
@@ -337,7 +355,7 @@
         }
     }
 
-    // Exportar funciones globalmente para los botones
+    // Exportar funciones globalmente
     window.gestionLecciones = {
         editarLeccion: (id) => {
             window.location.href = `/pages/admin/editor-leccion.html?id=${id}`;
@@ -418,12 +436,8 @@
         console.log('✅ Dependencias cargadas:', dependencies.filter(dep => window[dep]));
     }
 
-    /**
-     * ✅ VERIFICACIÓN DE PERMISOS CORREGIDA
-     */
     function verificarPermisosAdmin() {
         try {
-            // Usar Utils y APP_CONFIG para obtener el usuario
             const usuario = window.Utils?.getFromStorage(window.APP_CONFIG?.STORAGE?.KEYS?.USUARIO) || 
                            JSON.parse(localStorage.getItem('usuario') || '{}');
             
@@ -433,14 +447,12 @@
             console.log('👤 Usuario actual:', usuario);
             console.log('🔑 Token presente:', !!token);
             
-            // Verificar token
             if (!token) {
                 console.warn('⚠️ No hay token de autenticación');
                 mostrarErrorPermisos('Debes iniciar sesión para acceder a esta página');
                 return false;
             }
             
-            // Verificar rol (usar 'rol' en español, no 'role')
             const rol = (usuario.rol || usuario.role || '').toLowerCase();
             console.log('👔 Rol del usuario:', rol);
             
@@ -474,7 +486,7 @@
         }, 2000);
     }
 
-    // Inicializar cuando el DOM esté listo
+    // Inicializar
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
