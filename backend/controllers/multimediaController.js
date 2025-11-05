@@ -1,3 +1,4 @@
+// backend/controllers/multimediaController.js
 const Multimedia = require('../models/multimedia');
 const Leccion = require('../models/lecciones'); // ✅ CORREGIDO: 'lecciones' en plural
 const fs = require('fs').promises;

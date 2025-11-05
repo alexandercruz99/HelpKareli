@@ -1,7 +1,6 @@
 /* ============================================
-   SPEAKLEXI - CLIENTE API
-   Archivo: assets/js/api-client.js
-   Usa: window.APP_CONFIG desde app-config.js
+   SPEAKLEXI - CLIENTE API CORREGIDO (VERSIÓN COMPLETA)
+   Archivo: assets/js/core/api-client.js
    ============================================ */
 
 class APIClient {
@@ -206,7 +205,7 @@ class APIClient {
 
     /**
      * ========================================
-     * MÉTODOS HTTP BÁSICOS
+     * MÉTODOS HTTP BÁSICOS - CORREGIDOS
      * ========================================
      */
 
@@ -226,8 +225,9 @@ class APIClient {
         });
     }
 
+    // ✅ CORREGIDO: Cambiar 'url' por 'endpoint'
     async put(endpoint, body = {}) {
-        return this.request(url, {
+        return this.request(endpoint, {
             method: 'PUT',
             body: JSON.stringify(body)
         });
@@ -292,7 +292,6 @@ class APIClient {
     /**
      * ========================================
      * ENDPOINTS ESPECÍFICOS DE SPEAKLEXI
-     * Usando la configuración centralizada
      * ========================================
      */
 
@@ -375,6 +374,21 @@ class APIClient {
         return this.get(endpoint);
     }
 
+    async crearLeccion(datos) {
+        const endpoint = this.config.ENDPOINTS?.LECCIONES?.CREAR || '/lecciones';
+        return this.post(endpoint, datos);
+    }
+
+    async actualizarLeccion(id, datos) {
+        const endpoint = (this.config.ENDPOINTS?.LECCIONES?.ACTUALIZAR || '/lecciones/:id').replace(':id', id);
+        return this.put(endpoint, datos);
+    }
+
+    async eliminarLeccion(id) {
+        const endpoint = (this.config.ENDPOINTS?.LECCIONES?.ELIMINAR || '/lecciones/:id').replace(':id', id);
+        return this.delete(endpoint);
+    }
+
     async iniciarLeccion(id) {
         const endpoint = (this.config.ENDPOINTS?.LECCIONES?.INICIAR || '/lecciones/:id/iniciar').replace(':id', id);
         return this.post(endpoint);
@@ -389,6 +403,11 @@ class APIClient {
     async registrarProgreso(data) {
         const endpoint = this.config.ENDPOINTS?.PROGRESO?.REGISTRAR || '/progreso/registrar';
         return this.post(endpoint, data);
+    }
+
+    async getProgresoLeccion(leccionId) {
+        const endpoint = (this.config.ENDPOINTS?.PROGRESO?.LECCION || '/progreso/leccion/:id').replace(':id', leccionId);
+        return this.get(endpoint);
     }
 
     async getRankingGlobal() {
@@ -407,10 +426,36 @@ class APIClient {
         return this.get(endpoint);
     }
 
+    async getEstadisticasGenerales() {
+        const endpoint = this.config.ENDPOINTS?.ESTADISTICAS?.GENERALES || '/estadisticas/generales';
+        return this.get(endpoint);
+    }
+
     // 🔧 MÓDULO 5: REPORTES Y MANTENIMIENTO
     async crearReporteFalla(data) {
         const endpoint = this.config.ENDPOINTS?.REPORTES?.CREAR || '/reportes/fallas/crear';
         return this.post(endpoint, data);
+    }
+
+    async listarReportes() {
+        const endpoint = this.config.ENDPOINTS?.REPORTES?.LISTAR || '/reportes/fallas';
+        return this.get(endpoint);
+    }
+
+    // 🎬 MÓDULO 6: MULTIMEDIA
+    async subirMultimedia(formData) {
+        const endpoint = this.config.ENDPOINTS?.MULTIMEDIA?.SUBIR || '/multimedia/subir';
+        return this.uploadFile(endpoint, formData);
+    }
+
+    async obtenerMultimediaLeccion(leccionId) {
+        const endpoint = (this.config.ENDPOINTS?.MULTIMEDIA?.POR_LECCION || '/multimedia/leccion/:id').replace(':id', leccionId);
+        return this.get(endpoint);
+    }
+
+    async eliminarMultimedia(id) {
+        const endpoint = (this.config.ENDPOINTS?.MULTIMEDIA?.ELIMINAR || '/multimedia/:id').replace(':id', id);
+        return this.delete(endpoint);
     }
 
     /**
@@ -427,6 +472,26 @@ class APIClient {
     async getServerConfig() {
         const endpoint = this.config.ENDPOINTS?.CONFIG || '/config';
         return this.get(endpoint);
+    }
+
+    /**
+     * Verifica si el usuario está autenticado
+     */
+    async verificarAutenticacion() {
+        try {
+            const token = this.getAuthToken();
+            if (!token) {
+                return { autenticado: false };
+            }
+            
+            const resultado = await this.getPerfil();
+            return {
+                autenticado: resultado.success,
+                usuario: resultado.data
+            };
+        } catch (error) {
+            return { autenticado: false };
+        }
     }
 }
 
