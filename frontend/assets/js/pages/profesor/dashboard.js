@@ -1,890 +1,601 @@
 /* ============================================
-   SPEAKLEXI - DASHBOARD PROFESOR
+   SPEAKLEXI - Dashboard Profesor (Rediseñado)
    Archivo: assets/js/pages/profesor/dashboard.js
    ============================================ */
 
-(() => {
+(async () => {
     'use strict';
 
     // ============================================
-    // 1. CONFIGURACIÓN Y VARIABLES GLOBALES
+    // 1. ESPERAR DEPENDENCIAS
     // ============================================
-    let progressChart, performanceChart, activityChart;
-    let dashboardData = {
-        stats: {},
-        recentStudents: [],
-        classMetrics: {},
-        pendingTasks: [],
-        upcomingLessons: []
-    };
-
-    // ============================================
-    // 2. VERIFICACIÓN DE DEPENDENCIAS
-    // ============================================
-    const requiredDependencies = [
+    const dependencias = [
         'APP_CONFIG',
-        'apiClient', 
-        'Utils',
-        'themeManager',
-        'toastManager',
-        'Chart'
+        'apiClient',
+        'ModuleLoader'
     ];
 
-    /**
-     * Verifica que todas las dependencias estén cargadas
-     */
-    function checkDependencies() {
-        const missing = [];
-        
-        for (const dep of requiredDependencies) {
-            if (!window[dep]) {
-                missing.push(dep);
-            }
+    const inicializado = await window.ModuleLoader.initModule({
+        moduleName: 'Dashboard Profesor',
+        dependencies: dependencias,
+        onReady: inicializarDashboard,
+        onError: (error) => {
+            console.error('💥 Error al cargar dashboard:', error);
         }
+    });
 
-        if (missing.length > 0) {
-            console.warn(`⚠️ Dependencias faltantes: ${missing.join(', ')}`);
-            return false;
-        }
-        
-        return true;
-    }
-
-    /**
-     * Espera a que las dependencias estén listas
-     */
-    async function waitForDependencies(maxAttempts = 50) {
-        let attempts = 0;
-        
-        while (attempts < maxAttempts) {
-            if (checkDependencies()) {
-                return true;
-            }
-            
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-        }
-        
-        console.error('❌ Timeout esperando dependencias');
-        return false;
-    }
+    if (!inicializado) return;
 
     // ============================================
-    // 3. FUNCIONES PRINCIPALES
+    // 2. FUNCIÓN PRINCIPAL
     // ============================================
+    async function inicializarDashboard() {
+        console.log('✅ Dashboard Profesor iniciando...');
 
-    /**
-     * Inicializa el dashboard del profesor
-     */
-    async function init() {
-        console.log('🚀 Iniciando Dashboard Profesor...');
+        const API = window.APP_CONFIG.API;
+        const client = window.apiClient;
 
-        // Esperar dependencias
-        const ready = await waitForDependencies();
-        if (!ready) {
-            console.error('❌ No se pudieron cargar todas las dependencias');
-            return;
-        }
-
-        console.log('✅ Todas las dependencias cargadas');
-        
-        // Verificar permisos primero
-        if (!verificarPermisos()) {
-            return;
-        }
-
-        // Setup básico
-        setupEventListeners();
-        
-        // Esperar a que el navbar esté cargado para inicializar el tema
-        await esperarNavbar();
-        inicializarTheme();
-        
-        // Cargar datos del dashboard
-        await cargarDashboardData();
-        
-        // Configurar listener de tema DESPUÉS de cargar los gráficos
-        configurarListenerTema();
-        
-        console.log('✅ Dashboard Profesor inicializado correctamente');
-    }
-
-    /**
-     * Espera a que el navbar esté cargado en el DOM
-     */
-    async function esperarNavbar(maxAttempts = 50) {
-        let attempts = 0;
-        
-        while (attempts < maxAttempts) {
-            const themeButton = document.getElementById('theme-toggle');
-            if (themeButton) {
-                console.log('✅ Navbar cargado, botón de tema encontrado');
-                return true;
-            }
+        // ===================================
+        // ELEMENTOS DEL DOM
+        // ===================================
+        const elementos = {
+            // Estadísticas principales
+            totalEstudiantes: document.getElementById('total-estudiantes'),
+            leccionesCompletadas: document.getElementById('lecciones-completadas'),
+            promedioXP: document.getElementById('promedio-xp'),
+            horasTotales: document.getElementById('horas-totales'),
             
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-        }
-        
-        console.warn('⚠️ Navbar no se cargó en el tiempo esperado');
-        return false;
-    }
-
-    /**
-     * Inicializa el sistema de temas
-     */
-    function inicializarTheme() {
-        if (window.themeManager) {
-            const themeButton = document.getElementById('theme-toggle');
-            if (themeButton) {
-                window.themeManager.setupThemeButtons();
-                console.log('🎨 Theme Manager configurado para Dashboard Profesor');
-            } else {
-                console.warn('⚠️ Botón de tema no encontrado, intentando de nuevo...');
-                setTimeout(inicializarTheme, 500);
-            }
-        }
-    }
-
-    /**
-     * Verifica permisos de profesor
-     */
-    function verificarPermisos() {
-        try {
-            const usuario = Utils.getFromStorage(APP_CONFIG.STORAGE.KEYS.USUARIO);
+            // Gráficos
+            chartNiveles: document.getElementById('chart-niveles'),
+            chartIdiomas: document.getElementById('chart-idiomas'),
+            chartActividad: document.getElementById('chart-actividad'),
             
-            if (!usuario) {
-                window.location.href = APP_CONFIG.UI.RUTAS.LOGIN;
-                return false;
-            }
+            // Listas
+            listaEstudiantes: document.getElementById('lista-estudiantes'),
+            listaAlertas: document.getElementById('lista-alertas'),
+            listaLeccionesPopulares: document.getElementById('lista-lecciones-populares'),
             
-            const rol = usuario.rol || 'alumno';
+            // Filtros
+            filtroNivel: document.getElementById('filtro-nivel'),
+            filtroIdioma: document.getElementById('filtro-idioma'),
+            btnBuscar: document.getElementById('btn-buscar'),
+            inputBuscar: document.getElementById('input-buscar'),
             
-            if (!['profesor', 'admin', 'administrador'].includes(rol.toLowerCase())) {
-                mostrarErrorPermisos();
-                return false;
-            }
-            
-            return true;
-        } catch (error) {
-            console.error('Error verificando permisos:', error);
-            window.location.href = APP_CONFIG.UI.RUTAS.LOGIN;
-            return false;
-        }
-    }
+            // Loading
+            loadingDashboard: document.getElementById('loading-dashboard'),
+            contenidoDashboard: document.getElementById('contenido-dashboard'),
 
-    function mostrarErrorPermisos() {
-        if (window.toastManager) {
-            window.toastManager.error('No tienes permisos para acceder al panel de profesor');
-        }
-        setTimeout(() => {
-            const usuario = Utils.getFromStorage(APP_CONFIG.STORAGE.KEYS.USUARIO);
-            const rol = usuario?.rol || 'alumno';
-            window.location.href = APP_CONFIG.ROLES.RUTAS_DASHBOARD[rol] || APP_CONFIG.UI.RUTAS.LOGIN;
-        }, 3000);
-    }
+            // Contenedores principales
+            seccionEstadisticas: document.getElementById('seccion-estadisticas'),
+            seccionAnaliticas: document.getElementById('seccion-analiticas'),
+            seccionEstudiantes: document.getElementById('seccion-estudiantes')
+        };
 
-    /**
-     * Configura todos los event listeners
-     */
-    function setupEventListeners() {
-        // Botones de acciones rápidas
-        document.querySelectorAll('.flex-col.items-center').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const action = this.querySelector('span')?.textContent;
-                if (action) manejarAccionRapida(action);
-            });
-        });
-
-        // Cards de estadísticas (click para ir a secciones específicas)
-        document.querySelectorAll('.cursor-pointer').forEach(card => {
-            card.addEventListener('click', function() {
-                const title = this.querySelector('p')?.textContent;
-                if (title) manejarClickCard(title);
-            });
-        });
-
-        // Filtros de gráficos
-        const activityChartContainer = document.querySelector("#activity-chart")?.parentElement;
-        if (activityChartContainer) {
-            const filterButtons = activityChartContainer.querySelectorAll('button');
-            filterButtons.forEach((btn, index) => {
-                btn.addEventListener('click', function() {
-                    // Remover clase activa de todos
-                    filterButtons.forEach(b => {
-                        b.classList.remove('bg-primary-100', 'dark:bg-primary-900/30', 'text-primary-600', 'dark:text-primary-400');
-                        b.classList.add('bg-gray-100', 'dark:bg-gray-700', 'text-gray-600', 'dark:text-gray-400');
-                    });
-                    
-                    // Agregar clase activa al clickeado
-                    this.classList.remove('bg-gray-100', 'dark:bg-gray-700', 'text-gray-600', 'dark:text-gray-400');
-                    this.classList.add('bg-primary-100', 'dark:bg-primary-900/30', 'text-primary-600', 'dark:text-primary-400');
-                    
-                    // Actualizar gráfico
-                    actualizarGraficoActividad(index === 0 ? '7d' : '30d');
-                });
-            });
-        }
-
-        // Botones de navegación
-        document.querySelectorAll('button[data-action]').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const action = this.getAttribute('data-action');
-                manejarNavegacion(action);
-            });
-        });
-    }
-
-    /**
-     * Carga los datos del dashboard del profesor
-     */
-    async function cargarDashboardData() {
-        try {
-            mostrarLoading(true);
-
-            // Intentar cargar datos reales del backend
-            const datosReales = await cargarDatosReales();
-            
-            if (datosReales) {
-                dashboardData = datosReales;
-            } else {
-                // Fallback a datos de demostración
-                console.log('📊 Usando datos de demostración para profesor');
-                dashboardData = obtenerDatosDemostracion();
+        // ===================================
+        // CARGAR RESUMEN GENERAL
+        // ===================================
+        async function cargarResumenGeneral() {
+            try {
+                const response = await client.get(`${API.BASE_URL}/api/estadisticas/resumen-general`);
+                const data = await response.json();
                 
-                if (window.toastManager) {
-                    window.toastManager.warning('Mostrando datos de demostración. Servidor no disponible.');
+                console.log('📊 Resumen general:', data);
+
+                if (!data.success) {
+                    throw new Error(data.mensaje || 'Error en la respuesta del servidor');
                 }
-            }
-            
-            inicializarGraficos();
-            actualizarUI();
 
-            if (window.toastManager) {
-                window.toastManager.success('Dashboard del profesor cargado correctamente');
-            }
+                // Actualizar estadísticas principales
+                actualizarEstadisticasPrincipales(data.data.resumen);
 
-        } catch (error) {
-            manejarError('Error al cargar datos del dashboard', error);
-            
-            // Usar datos de demo como último recurso
-            dashboardData = obtenerDatosDemostracion();
-            inicializarGraficos();
-            actualizarUI();
-        } finally {
-            mostrarLoading(false);
+                // Renderizar gráficos y datos
+                renderizarGraficoNiveles(data.data.estudiantes_por_nivel);
+                renderizarGraficoIdiomas(data.data.estudiantes_por_idioma);
+                renderizarGraficoActividad(data.data.actividad_reciente);
+                renderizarLeccionesPopulares(data.data.lecciones_populares);
+
+            } catch (error) {
+                console.error('Error al cargar resumen general:', error);
+                mostrarError('No se pudo cargar el resumen general');
+                usarDatosDemostracion();
+            }
         }
-    }
 
-    /**
-     * Intenta cargar datos reales del backend para profesor
-     */
-    async function cargarDatosReales() {
-        try {
-            const profesorId = Utils.getFromStorage(APP_CONFIG.STORAGE.KEYS.USUARIO_ID);
-            
-            // Endpoints específicos para profesor
-            const endpoints = APP_CONFIG.API.ENDPOINTS.PROFESOR;
-            
-            const [estadisticasRes, alumnosRes, tareasRes] = await Promise.all([
-                window.apiClient.get(endpoints.ESTADISTICAS.replace(':id', profesorId)),
-                window.apiClient.get(endpoints.ALUMNOS + '?limit=5&recent=true'),
-                window.apiClient.get(endpoints.TAREAS_PENDIENTES.replace(':id', profesorId))
-            ]);
-
-            if (estadisticasRes.success && alumnosRes.success) {
-                return {
-                    stats: {
-                        totalAlumnos: estadisticasRes.data.total_alumnos || 0,
-                        leccionesActivas: estadisticasRes.data.lecciones_activas || 0,
-                        retroalimentacionPendiente: estadisticasRes.data.retroalimentacion_pendiente || 0,
-                        promedioProgreso: estadisticasRes.data.promedio_progreso || 0
-                    },
-                    recentStudents: alumnosRes.data.alumnos || [],
-                    classMetrics: estadisticasRes.data.metricas_clase || {
-                        nivelPromedio: 'B1',
-                        tasaCompletacion: 75,
-                        horasTotales: 245,
-                        actividadSemanal: 89
-                    },
-                    pendingTasks: tareasRes.success ? tareasRes.data.tareas : [],
-                    upcomingLessons: estadisticasRes.data.proximas_lecciones || []
-                };
+        // ===================================
+        // ACTUALIZAR ESTADÍSTICAS PRINCIPALES
+        // ===================================
+        function actualizarEstadisticasPrincipales(resumen) {
+            if (elementos.totalEstudiantes) {
+                elementos.totalEstudiantes.textContent = resumen.total_estudiantes;
+                elementos.totalEstudiantes.parentElement.querySelector('.text-sm').textContent = 
+                    `${resumen.estudiantes_con_progreso} activos`;
             }
-            
-            return null;
-        } catch (error) {
-            console.warn('⚠️ No se pudieron cargar datos reales del profesor:', error.message);
-            return null;
+            if (elementos.leccionesCompletadas) {
+                elementos.leccionesCompletadas.textContent = resumen.total_lecciones_completadas.toLocaleString();
+            }
+            if (elementos.promedioXP) {
+                elementos.promedioXP.textContent = `${resumen.promedio_xp} XP`;
+            }
+            if (elementos.horasTotales) {
+                elementos.horasTotales.textContent = `${resumen.horas_totales_estudio}h`;
+            }
         }
-    }
 
-    /**
-     * Obtiene datos de demostración para profesor
-     */
-    function obtenerDatosDemostracion() {
-        return {
-            stats: {
-                totalAlumnos: 45,
-                leccionesActivas: 12,
-                retroalimentacionPendiente: 8,
-                promedioProgreso: 72
-            },
-            recentStudents: [
-                {
-                    id: 1,
-                    nombre: 'Ana García López',
-                    nivel: 'B1',
-                    progreso: 85,
-                    ultimaActividad: new Date().toISOString(),
-                    avatar: 'https://ui-avatars.com/api/?name=Ana+Garcia&background=6366f1&color=fff',
-                    necesitaRetroalimentacion: true
-                },
-                {
-                    id: 2,
-                    nombre: 'Carlos Rodríguez',
-                    nivel: 'A2', 
-                    progreso: 65,
-                    ultimaActividad: new Date(Date.now() - 86400000).toISOString(),
-                    avatar: 'https://ui-avatars.com/api/?name=Carlos+Rodriguez&background=10b981&color=fff',
-                    necesitaRetroalimentacion: false
-                },
-                {
-                    id: 3,
-                    nombre: 'María Fernández',
-                    nivel: 'B2',
-                    progreso: 92,
-                    ultimaActividad: new Date(Date.now() - 172800000).toISOString(),
-                    avatar: 'https://ui-avatars.com/api/?name=Maria+Fernandez&background=f59e0b&color=fff',
-                    necesitaRetroalimentacion: true
-                }
-            ],
-            classMetrics: {
-                nivelPromedio: 'B1',
-                tasaCompletacion: 75,
-                horasTotales: 245,
-                actividadSemanal: 89
-            },
-            pendingTasks: [
-                {
-                    id: 1,
-                    tipo: 'retroalimentacion',
-                    titulo: 'Revisar ejercicio de Ana García',
-                    descripcion: 'Ejercicio de conversación avanzada',
-                    prioridad: 'alta',
-                    fechaLimite: new Date(Date.now() + 86400000).toISOString()
-                },
-                {
-                    id: 2,
-                    tipo: 'planificacion',
-                    titulo: 'Planificar lección B1',
-                    descripcion: 'Nueva lección sobre tiempos verbales',
-                    prioridad: 'media',
-                    fechaLimite: new Date(Date.now() + 259200000).toISOString()
-                }
-            ],
-            upcomingLessons: [
-                {
-                    id: 1,
-                    titulo: 'Conversación Avanzada B2',
-                    fecha: new Date(Date.now() + 86400000).toISOString(),
-                    alumnosInscritos: 8,
-                    duracion: 60
-                },
-                {
-                    id: 2, 
-                    titulo: 'Gramática Intermedia B1',
-                    fecha: new Date(Date.now() + 172800000).toISOString(),
-                    alumnosInscritos: 12,
-                    duracion: 45
-                }
-            ]
-        };
-    }
+        // ===================================
+        // CARGAR LISTA DE ESTUDIANTES
+        // ===================================
+        async function cargarListaEstudiantes(filtros = {}) {
+            try {
+                const params = new URLSearchParams({
+                    limite: 15,
+                    pagina: 1,
+                    orden: 'nombre',
+                    ...filtros
+                });
 
-    /**
-     * Inicializa los gráficos con Chart.js
-     */
-    function inicializarGraficos() {
-        // Detectar tema actual
-        const isDark = document.documentElement.classList.contains('dark');
-        const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-        const textColor = isDark ? '#9ca3af' : '#6b7280';
+                const response = await client.get(
+                    `${API.BASE_URL}/api/estadisticas/estudiantes?${params}`
+                );
+                const data = await response.json();
 
-        // Gráfico de Progreso de la Clase
-        const progressCtx = document.getElementById('progress-chart')?.getContext('2d');
-        if (progressCtx) {
-            if (progressChart) {
-                progressChart.destroy();
+                if (data.success) {
+                    renderizarListaEstudiantes(data.data.estudiantes);
+                } else {
+                    throw new Error(data.mensaje);
+                }
+
+            } catch (error) {
+                console.error('Error al cargar estudiantes:', error);
+                renderizarListaEstudiantes([]);
             }
+        }
 
-            progressChart = new Chart(progressCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Completado', 'En Progreso', 'No Iniciado'],
-                    datasets: [{
-                        data: [65, 25, 10],
-                        backgroundColor: [
-                            '#10b981',
-                            '#f59e0b', 
-                            '#ef4444'
-                        ],
-                        borderWidth: 2,
-                        borderColor: isDark ? '#1f2937' : '#ffffff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '70%',
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                color: textColor,
-                                font: {
-                                    family: 'Inter, system-ui, sans-serif'
-                                }
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: isDark ? '#1f2937' : '#ffffff',
-                            titleColor: textColor,
-                            bodyColor: textColor,
-                            borderColor: '#6366f1',
-                            borderWidth: 1
-                        }
-                    }
+        // ===================================
+        // CARGAR ALERTAS
+        // ===================================
+        async function cargarAlertas() {
+            try {
+                const response = await client.get(`${API.BASE_URL}/api/estadisticas/estudiantes-alerta`);
+                const data = await response.json();
+
+                if (data.success) {
+                    renderizarAlertas(data.data.estudiantes);
+                } else {
+                    throw new Error(data.mensaje);
                 }
+
+            } catch (error) {
+                console.error('Error al cargar alertas:', error);
+                renderizarAlertas([]);
+            }
+        }
+
+        // ===================================
+        // RENDERIZAR GRÁFICO DE NIVELES
+        // ===================================
+        function renderizarGraficoNiveles(datos) {
+            if (!elementos.chartNiveles) return;
+
+            const colores = {
+                'A1': '#10B981', 'A2': '#3B82F6',
+                'B1': '#F59E0B', 'B2': '#EF4444',
+                'C1': '#8B5CF6', 'C2': '#EC4899'
+            };
+
+            // Ordenar por nivel
+            const nivelesOrdenados = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+            const datosOrdenados = nivelesOrdenados.map(nivel => {
+                const item = datos.find(d => d.nivel_actual === nivel);
+                return item || { nivel_actual: nivel, cantidad: 0 };
             });
+
+            const total = datos.reduce((sum, d) => sum + d.cantidad, 0);
+
+            elementos.chartNiveles.innerHTML = `
+                <div class="space-y-4">
+                    ${datosOrdenados.map(item => {
+                        const porcentaje = total > 0 ? (item.cantidad / total * 100) : 0;
+                        return `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <div class="flex items-center space-x-3 flex-1">
+                                <div class="w-3 h-3 rounded-full" style="background-color: ${colores[item.nivel_actual] || '#6B7280'}"></div>
+                                <span class="font-medium text-gray-900 dark:text-white">${item.nivel_actual}</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-semibold text-gray-900 dark:text-white">${item.cantidad}</div>
+                                <div class="text-sm text-gray-500">${porcentaje.toFixed(1)}%</div>
+                            </div>
+                        </div>
+                    `}).join('')}
+                </div>
+            `;
         }
 
-        // Gráfico de Rendimiento por Habilidad
-        const performanceCtx = document.getElementById('performance-chart')?.getContext('2d');
-        if (performanceCtx) {
-            if (performanceChart) {
-                performanceChart.destroy();
+        // ===================================
+        // RENDERIZAR GRÁFICO DE IDIOMAS
+        // ===================================
+        function renderizarGraficoIdiomas(datos) {
+            if (!elementos.chartIdiomas) return;
+
+            const total = datos.reduce((a, b) => a + b.cantidad, 0);
+
+            elementos.chartIdiomas.innerHTML = `
+                <div class="space-y-4">
+                    ${datos.map(item => {
+                        const porcentaje = total > 0 ? (item.cantidad / total * 100).toFixed(1) : 0;
+                        return `
+                            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div class="flex items-center space-x-3 flex-1">
+                                    <span class="text-2xl">${getIconoIdioma(item.idioma_aprendizaje)}</span>
+                                    <div class="flex-1">
+                                        <p class="font-medium text-gray-900 dark:text-white">${item.idioma_aprendizaje}</p>
+                                        <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
+                                            <div class="bg-blue-600 h-2 rounded-full transition-all duration-500" 
+                                                 style="width: ${porcentaje}%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-semibold text-gray-900 dark:text-white">${item.cantidad}</div>
+                                    <div class="text-sm text-gray-500">${porcentaje}%</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        // ===================================
+        // RENDERIZAR GRÁFICO DE ACTIVIDAD
+        // ===================================
+        function renderizarGraficoActividad(datos) {
+            if (!elementos.chartActividad) return;
+
+            if (!datos || datos.length === 0) {
+                elementos.chartActividad.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="text-6xl mb-4">📊</div>
+                        <p class="text-gray-500 dark:text-gray-400 text-lg">Sin actividad reciente</p>
+                        <p class="text-sm text-gray-400 mt-2">Los datos de actividad aparecerán aquí</p>
+                    </div>
+                `;
+                return;
             }
 
-            performanceChart = new Chart(performanceCtx, {
-                type: 'radar',
-                data: {
-                    labels: ['Lectura', 'Escritura', 'Escucha', 'Habla', 'Gramática', 'Vocabulario'],
-                    datasets: [{
-                        label: 'Promedio Clase',
-                        data: [75, 68, 82, 65, 70, 78],
-                        backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                        borderColor: '#6366f1',
-                        borderWidth: 2,
-                        pointBackgroundColor: '#6366f1',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        r: {
-                            angleLines: {
-                                color: gridColor
-                            },
-                            grid: {
-                                color: gridColor
-                            },
-                            pointLabels: {
-                                color: textColor,
-                                font: {
-                                    family: 'Inter, system-ui, sans-serif'
-                                }
-                            },
-                            ticks: {
-                                color: textColor,
-                                backdropColor: 'transparent'
-                            },
-                            beginAtZero: true,
-                            max: 100
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: textColor,
-                                font: {
-                                    family: 'Inter, system-ui, sans-serif'
-                                }
-                            }
-                        }
-                    }
-                }
-            });
+            // Tomar los últimos 7 días
+            const ultimos7Dias = datos.slice(0, 7).reverse();
+            const maxLecciones = Math.max(...ultimos7Dias.map(d => d.lecciones_completadas));
+
+            elementos.chartActividad.innerHTML = `
+                <div class="flex items-end justify-between h-64 space-x-2 px-4">
+                    ${ultimos7Dias.map(item => {
+                        const altura = maxLecciones > 0 ? (item.lecciones_completadas / maxLecciones * 80) : 0;
+                        const esHoy = new Date(item.fecha).toDateString() === new Date().toDateString();
+                        
+                        return `
+                            <div class="flex-1 flex flex-col items-center">
+                                <div class="w-full ${esHoy ? 'bg-blue-600' : 'bg-blue-500'} rounded-t-lg hover:bg-blue-700 transition-all cursor-pointer relative group"
+                                     style="height: ${altura}%"
+                                     title="${item.lecciones_completadas} lecciones - ${item.estudiantes_activos} estudiantes">
+                                    <div class="absolute -top-10 left-1/2 transform -translate-x-1/2 
+                                                bg-gray-900 text-white text-xs px-2 py-1 rounded 
+                                                opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                        <div class="font-semibold">${item.lecciones_completadas} lecciones</div>
+                                        <div class="text-xs">${item.estudiantes_activos} estudiantes</div>
+                                    </div>
+                                </div>
+                                <p class="text-xs font-medium text-gray-600 dark:text-gray-400 mt-2">
+                                    ${formatearFechaCorta(item.fecha)}
+                                </p>
+                                <p class="text-lg font-bold text-gray-900 dark:text-white mt-1">
+                                    ${item.lecciones_completadas}
+                                </p>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
         }
 
-        // Gráfico de Actividad Semanal
-        const activityCtx = document.getElementById('activity-chart')?.getContext('2d');
-        if (activityCtx) {
-            if (activityChart) {
-                activityChart.destroy();
+        // ===================================
+        // RENDERIZAR LISTA DE ESTUDIANTES
+        // ===================================
+        function renderizarListaEstudiantes(estudiantes) {
+            if (!elementos.listaEstudiantes) return;
+
+            if (!estudiantes || estudiantes.length === 0) {
+                elementos.listaEstudiantes.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="text-6xl mb-4">👥</div>
+                        <p class="text-gray-500 dark:text-gray-400 text-lg">No hay estudiantes para mostrar</p>
+                        <p class="text-sm text-gray-400 mt-2">Ajusta los filtros o intenta de nuevo</p>
+                    </div>
+                `;
+                return;
             }
 
-            activityChart = new Chart(activityCtx, {
-                type: 'line',
-                data: {
-                    labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
-                    datasets: [{
-                        label: 'Horas de Estudio',
-                        data: [12, 15, 8, 18, 22, 10, 5],
-                        borderColor: '#6366f1',
-                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                        borderWidth: 3,
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: gridColor
-                            },
-                            ticks: {
-                                color: textColor
-                            }
-                        },
-                        x: {
-                            grid: {
-                                color: gridColor
-                            },
-                            ticks: {
-                                color: textColor
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: textColor,
-                                font: {
-                                    family: 'Inter, system-ui, sans-serif'
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-    }
-
-    /**
-     * Configura el listener para cambios de tema
-     */
-    function configurarListenerTema() {
-        if (window._profesorDashboardThemeHandler) {
-            document.removeEventListener('themeChange', window._profesorDashboardThemeHandler);
-        }
-        
-        window._profesorDashboardThemeHandler = (event) => {
-            console.log('🎨 Tema cambiado, actualizando gráficos del profesor...');
-            setTimeout(() => {
-                inicializarGraficos();
-            }, 150);
-        };
-        
-        document.addEventListener('themeChange', window._profesorDashboardThemeHandler);
-        console.log('✅ Listener de tema configurado para gráficos del profesor');
-    }
-
-    /**
-     * Actualiza el gráfico de actividad
-     */
-    function actualizarGraficoActividad(periodo) {
-        if (window.toastManager) {
-            window.toastManager.info(`Mostrando actividad de los últimos ${periodo === '7d' ? '7 días' : '30 días'}`);
-        }
-        
-        console.log(`Actualizando gráfico para período: ${periodo}`);
-        // Aquí se actualizarían los datos del gráfico con llamadas al backend
-    }
-
-    /**
-     * Maneja acciones rápidas del dashboard
-     */
-    function manejarAccionRapida(accion) {
-        const acciones = {
-            'Retroalimentación': () => irARetroalimentacion(),
-            'Planificación': () => irAPlanificacion(),
-            'Estadísticas': () => irAEstadisticas(),
-            'Contenido': () => irAGestionContenido()
-        };
-
-        if (acciones[accion]) {
-            acciones[accion]();
-        } else {
-            console.log(`Acción: ${accion}`);
-        }
-    }
-
-    /**
-     * Maneja clicks en las cards de estadísticas
-     */
-    function manejarClickCard(titulo) {
-        const navegacion = {
-            'Total Alumnos': () => irAGestionAlumnos(),
-            'Lecciones Activas': () => irAGestionLecciones(),
-            'Retroalimentación Pendiente': () => irARetroalimentacion(),
-            'Progreso Promedio': () => irAEstadisticas()
-        };
-
-        if (navegacion[titulo]) {
-            navegacion[titulo]();
-        }
-    }
-
-    /**
-     * Maneja navegación por acciones
-     */
-    function manejarNavegacion(accion) {
-        const rutas = {
-            'gestion-alumnos': '/pages/profesor/gestion-alumnos.html',
-            'retroalimentacion': '/pages/profesor/retroalimentacion-profesor.html',
-            'planificacion': '/pages/profesor/planificacion.html',
-            'estadisticas': '/pages/profesor/estadisticas-profesor.html',
-            'gestion-contenido': '/pages/profesor/gestion-contenido.html'
-        };
-
-        if (rutas[accion]) {
-            window.location.href = rutas[accion];
-        }
-    }
-
-    // Funciones de navegación
-    function irARetroalimentacion() {
-        window.location.href = '/pages/profesor/retroalimentacion-profesor.html';
-    }
-
-    function irAPlanificacion() {
-        window.location.href = '/pages/profesor/planificacion.html';
-    }
-
-    function irAEstadisticas() {
-        window.location.href = '/pages/profesor/estadisticas-profesor.html';
-    }
-
-    function irAGestionContenido() {
-        window.location.href = '/pages/profesor/gestion-contenido.html';
-    }
-
-    function irAGestionAlumnos() {
-        window.location.href = '/pages/profesor/gestion-alumnos.html';
-    }
-
-    function irAGestionLecciones() {
-        window.location.href = '/pages/profesor/gestion-lecciones.html';
-    }
-
-    /**
-     * Actualiza la UI con los datos cargados
-     */
-    function actualizarUI() {
-        actualizarStatsCards();
-        actualizarListaAlumnos();
-        actualizarMetricasClase();
-        actualizarTareasPendientes();
-        actualizarProximasLecciones();
-    }
-
-    function actualizarStatsCards() {
-        const { stats } = dashboardData;
-        
-        // Actualizar cada stat card
-        const statElements = {
-            alumnos: document.querySelector('[data-stat="alumnos"]'),
-            lecciones: document.querySelector('[data-stat="lecciones"]'),
-            retroalimentacion: document.querySelector('[data-stat="retroalimentacion"]'),
-            progreso: document.querySelector('[data-stat="progreso"]')
-        };
-
-        if (statElements.alumnos) statElements.alumnos.textContent = stats.totalAlumnos?.toLocaleString() || '0';
-        if (statElements.lecciones) statElements.lecciones.textContent = stats.leccionesActivas?.toLocaleString() || '0';
-        if (statElements.retroalimentacion) statElements.retroalimentacion.textContent = stats.retroalimentacionPendiente?.toLocaleString() || '0';
-        if (statElements.progreso) statElements.progreso.textContent = `${stats.promedioProgreso?.toLocaleString() || '0'}%`;
-    }
-
-    function actualizarListaAlumnos() {
-        const container = document.getElementById('recent-students');
-        if (!container || !dashboardData.recentStudents.length) return;
-
-        container.innerHTML = dashboardData.recentStudents.map(alumno => {
-            const fecha = formatearFecha(alumno.ultimaActividad);
-            const badgeClass = alumno.necesitaRetroalimentacion ? 
-                'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' : 
-                'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-            
-            const badgeText = alumno.necesitaRetroalimentacion ? 'Necesita feedback' : 'Al día';
-
-            return `
-                <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                    <div class="flex items-center gap-3">
-                        <img src="${alumno.avatar}" class="w-10 h-10 rounded-full" alt="${alumno.nombre}">
-                        <div>
-                            <p class="font-medium text-gray-900 dark:text-white">${alumno.nombre}</p>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">
-                                Nivel ${alumno.nivel} • ${alumno.progreso}% completado
-                            </p>
+            elementos.listaEstudiantes.innerHTML = estudiantes.map(est => `
+                <div class="group hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 border-b border-gray-200 dark:border-gray-700 last:border-0">
+                    <div class="flex items-center justify-between p-4 cursor-pointer" 
+                         onclick="window.location.href='/pages/profesor/estadisticas-profesor.html?id=${est.id}'">
+                        <div class="flex items-center space-x-4 flex-1">
+                            <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                                <span class="text-white font-bold text-sm">
+                                    ${est.nombre.charAt(0)}${est.primer_apellido.charAt(0)}
+                                </span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-2">
+                                    <h4 class="font-semibold text-gray-900 dark:text-white truncate">
+                                        ${est.nombre} ${est.primer_apellido}
+                                    </h4>
+                                    <span class="px-2 py-1 text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300 rounded-full font-medium">
+                                        ${est.nivel_actual}
+                                    </span>
+                                </div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 truncate">${est.correo}</p>
+                                <div class="flex items-center space-x-4 mt-1">
+                                    <span class="text-xs text-gray-500">${est.idioma_aprendizaje}</span>
+                                    <span class="text-xs text-gray-500">•</span>
+                                    <span class="text-xs text-gray-500">${est.lecciones_completadas}/${est.lecciones_iniciadas} lecciones</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-6">
+                            <div class="text-right">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-20 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                                        <div class="bg-green-500 h-2 rounded-full transition-all duration-500" 
+                                             style="width: ${est.promedio_progreso}%"></div>
+                                    </div>
+                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300 w-8">${est.promedio_progreso}%</span>
+                                </div>
+                                <div class="text-xs text-gray-500 mt-1">Progreso</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-lg font-bold text-blue-600 dark:text-blue-400">${est.total_xp}</div>
+                                <div class="text-xs text-gray-500">XP</div>
+                            </div>
+                            <div class="opacity-0 group-hover:opacity-100 transition-opacity">
+                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </div>
                         </div>
                     </div>
-                    <div class="text-right">
-                        <span class="px-2 py-1 text-xs ${badgeClass} rounded-full">${badgeText}</span>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${fecha}</p>
+                </div>
+            `).join('');
+        }
+
+        // ===================================
+        // RENDERIZAR ALERTAS
+        // ===================================
+        function renderizarAlertas(estudiantes) {
+            if (!elementos.listaAlertas) return;
+
+            if (!estudiantes || estudiantes.length === 0) {
+                elementos.listaAlertas.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="text-5xl mb-3">🎉</div>
+                        <p class="text-gray-600 dark:text-gray-400 font-medium">
+                            ¡Excelente trabajo!
+                        </p>
+                        <p class="text-sm text-gray-500 mt-1">
+                            Todos los estudiantes están activos y progresando
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+
+            elementos.listaAlertas.innerHTML = estudiantes.map(est => `
+                <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 rounded-lg hover:shadow-md transition-all duration-200">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                                    <span class="text-yellow-600 font-semibold text-sm">
+                                        ${est.nombre.charAt(0)}${est.primer_apellido.charAt(0)}
+                                    </span>
+                                </div>
+                                <h4 class="font-semibold text-gray-900 dark:text-white">
+                                    ${est.nombre} ${est.primer_apellido}
+                                </h4>
+                            </div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                ${est.motivo_alerta}
+                            </p>
+                            <div class="flex items-center space-x-3 text-xs text-gray-500">
+                                <span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">${est.nivel_actual}</span>
+                                <span>•</span>
+                                <span>${est.idioma_aprendizaje}</span>
+                                <span>•</span>
+                                <span>${est.dias_sin_actividad || 0} días sin actividad</span>
+                            </div>
+                        </div>
+                        <a href="/pages/profesor/retroalimentacion-profesor.html?estudiante=${est.id}"
+                           class="ml-4 text-sm bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-lg font-medium whitespace-nowrap transition-colors">
+                            Contactar
+                        </a>
                     </div>
                 </div>
-            `;
-        }).join('');
-    }
+            `).join('');
+        }
 
-    function actualizarMetricasClase() {
-        const { classMetrics } = dashboardData;
-        const container = document.getElementById('class-metrics');
-        if (!container) return;
+        // ===================================
+        // RENDERIZAR LECCIONES POPULARES
+        // ===================================
+        function renderizarLeccionesPopulares(lecciones) {
+            if (!elementos.listaLeccionesPopulares) return;
 
-        container.innerHTML = `
-            <div class="grid grid-cols-2 gap-4">
-                <div class="text-center p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <div class="text-2xl font-bold text-primary-600 dark:text-primary-400">${classMetrics.nivelPromedio}</div>
-                    <div class="text-sm text-gray-600 dark:text-gray-400">Nivel Promedio</div>
-                </div>
-                <div class="text-center p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <div class="text-2xl font-bold text-green-600 dark:text-green-400">${classMetrics.tasaCompletacion}%</div>
-                    <div class="text-sm text-gray-600 dark:text-gray-400">Tasa Completación</div>
-                </div>
-                <div class="text-center p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">${classMetrics.horasTotales}h</div>
-                    <div class="text-sm text-gray-600 dark:text-gray-400">Horas Totales</div>
-                </div>
-                <div class="text-center p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">${classMetrics.actividadSemanal}%</div>
-                    <div class="text-sm text-gray-600 dark:text-gray-400">Actividad Semanal</div>
-                </div>
-            </div>
-        `;
-    }
-
-    function actualizarTareasPendientes() {
-        const container = document.getElementById('pending-tasks');
-        if (!container || !dashboardData.pendingTasks.length) return;
-
-        container.innerHTML = dashboardData.pendingTasks.map(tarea => {
-            const prioridadClass = {
-                alta: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-                media: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-                baja: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-            }[tarea.prioridad];
-
-            const fecha = formatearFecha(tarea.fechaLimite);
-
-            return `
-                <div class="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                    <div class="flex-1">
-                        <p class="font-medium text-gray-900 dark:text-white">${tarea.titulo}</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">${tarea.descripcion}</p>
+            if (!lecciones || lecciones.length === 0) {
+                elementos.listaLeccionesPopulares.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="text-5xl mb-3">📚</div>
+                        <p class="text-gray-600 dark:text-gray-400">
+                            No hay datos de lecciones
+                        </p>
                     </div>
-                    <div class="text-right">
-                        <span class="px-2 py-1 text-xs ${prioridadClass} rounded-full capitalize">${tarea.prioridad}</span>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${fecha}</p>
+                `;
+                return;
+            }
+
+            elementos.listaLeccionesPopulares.innerHTML = lecciones.map((leccion, index) => {
+                const colores = ['bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-red-500', 'bg-purple-500'];
+                const color = colores[index] || 'bg-gray-500';
+                
+                return `
+                <div class="flex items-center space-x-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-all duration-200 group">
+                    <div class="flex-shrink-0">
+                        <div class="w-10 h-10 ${color} rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                            ${index + 1}
+                        </div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
+                            ${leccion.titulo}
+                        </p>
+                        <div class="flex items-center space-x-2 mt-1">
+                            <span class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">
+                                ${leccion.nivel}
+                            </span>
+                            <span class="text-xs text-gray-500">•</span>
+                            <span class="text-xs text-gray-500">${leccion.idioma}</span>
+                        </div>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                        <div class="text-lg font-bold text-gray-900 dark:text-white">${leccion.estudiantes}</div>
+                        <div class="text-xs text-gray-500">estudiantes</div>
                     </div>
                 </div>
-            `;
-        }).join('');
-    }
+            `}).join('');
+        }
 
-    function actualizarProximasLecciones() {
-        const container = document.getElementById('upcoming-lessons');
-        if (!container || !dashboardData.upcomingLessons.length) return;
+        // ===================================
+        // FUNCIONES AUXILIARES
+        // ===================================
+        function getIconoIdioma(idioma) {
+            const iconos = {
+                'Inglés': '🇬🇧',
+                'Francés': '🇫🇷',
+                'Alemán': '🇩🇪',
+                'Italiano': '🇮🇹',
+                'Español': '🇪🇸',
+                'Portugués': '🇵🇹',
+                'Chino': '🇨🇳',
+                'Japonés': '🇯🇵'
+            };
+            return iconos[idioma] || '🌍';
+        }
 
-        container.innerHTML = dashboardData.upcomingLessons.map(leccion => {
-            const fecha = new Date(leccion.fecha).toLocaleDateString('es-ES', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit'
+        function formatearFechaCorta(fecha) {
+            const date = new Date(fecha);
+            const hoy = new Date();
+            const ayer = new Date(hoy);
+            ayer.setDate(ayer.getDate() - 1);
+
+            if (date.toDateString() === hoy.toDateString()) return 'Hoy';
+            if (date.toDateString() === ayer.toDateString()) return 'Ayer';
+
+            return date.toLocaleDateString('es-MX', { 
+                day: 'numeric', 
+                month: 'short' 
             });
+        }
 
-            return `
-                <div class="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                    <div class="flex-1">
-                        <p class="font-medium text-gray-900 dark:text-white">${leccion.titulo}</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">${leccion.alumnosInscritos} alumnos • ${leccion.duracion} min</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm font-medium text-gray-900 dark:text-white">${fecha}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Próxima</p>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
+        function mostrarError(mensaje) {
+            console.error(mensaje);
+            // Aquí podrías agregar notificaciones toast
+        }
 
-    function formatearFecha(fechaISO) {
-        const fecha = new Date(fechaISO);
-        const ahora = new Date();
-        const diff = ahora - fecha;
+        function usarDatosDemostracion() {
+            console.log('📊 Usando datos de demostración');
+            
+            const datosDemo = {
+                resumen: {
+                    total_estudiantes: 45,
+                    estudiantes_con_progreso: 40,
+                    total_lecciones_completadas: 320,
+                    promedio_xp: 1250,
+                    horas_totales_estudio: 245
+                },
+                estudiantes_por_nivel: [
+                    { nivel_actual: 'A1', cantidad: 5 },
+                    { nivel_actual: 'A2', cantidad: 12 },
+                    { nivel_actual: 'B1', cantidad: 15 },
+                    { nivel_actual: 'B2', cantidad: 10 },
+                    { nivel_actual: 'C1', cantidad: 3 }
+                ],
+                estudiantes_por_idioma: [
+                    { idioma_aprendizaje: 'Inglés', cantidad: 30 },
+                    { idioma_aprendizaje: 'Francés', cantidad: 10 },
+                    { idioma_aprendizaje: 'Alemán', cantidad: 5 }
+                ],
+                actividad_reciente: [
+                    { fecha: new Date(Date.now() - 6 * 86400000).toISOString().split('T')[0], estudiantes_activos: 12, lecciones_completadas: 15 },
+                    { fecha: new Date(Date.now() - 5 * 86400000).toISOString().split('T')[0], estudiantes_activos: 15, lecciones_completadas: 18 },
+                    { fecha: new Date(Date.now() - 4 * 86400000).toISOString().split('T')[0], estudiantes_activos: 8, lecciones_completadas: 10 },
+                    { fecha: new Date(Date.now() - 3 * 86400000).toISOString().split('T')[0], estudiantes_activos: 18, lecciones_completadas: 22 },
+                    { fecha: new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0], estudiantes_activos: 22, lecciones_completadas: 25 },
+                    { fecha: new Date(Date.now() - 1 * 86400000).toISOString().split('T')[0], estudiantes_activos: 10, lecciones_completadas: 12 },
+                    { fecha: new Date().toISOString().split('T')[0], estudiantes_activos: 5, lecciones_completadas: 8 }
+                ],
+                lecciones_populares: [
+                    { id: 1, titulo: 'Saludos y Presentaciones Básicas', nivel: 'A1', idioma: 'Inglés', estudiantes: 25, veces_completada: 30 },
+                    { id: 2, titulo: 'Comida y Restaurantes', nivel: 'A1', idioma: 'Inglés', estudiantes: 22, veces_completada: 28 },
+                    { id: 3, titulo: 'Tiempos Verbales Pasado', nivel: 'A2', idioma: 'Inglés', estudiantes: 20, veces_completada: 25 },
+                    { id: 4, titulo: 'Conversación Avanzada y Debates', nivel: 'B2', idioma: 'Inglés', estudiantes: 15, veces_completada: 18 },
+                    { id: 5, titulo: 'Expresiones Idiomáticas Comunes', nivel: 'C1', idioma: 'Inglés', estudiantes: 10, veces_completada: 12 }
+                ]
+            };
+
+            actualizarEstadisticasPrincipales(datosDemo.resumen);
+            renderizarGraficoNiveles(datosDemo.estudiantes_por_nivel);
+            renderizarGraficoIdiomas(datosDemo.estudiantes_por_idioma);
+            renderizarGraficoActividad(datosDemo.actividad_reciente);
+            renderizarLeccionesPopulares(datosDemo.lecciones_populares);
+        }
+
+        // ===================================
+        // EVENT LISTENERS
+        // ===================================
         
-        if (diff < 0) {
-            // Fecha futura
-            const dias = Math.ceil(-diff / 86400000);
-            if (dias === 1) return 'Mañana';
-            if (dias <= 7) return `En ${dias} días`;
-            return fecha.toLocaleDateString('es-ES');
+        if (elementos.btnBuscar) {
+            elementos.btnBuscar.addEventListener('click', () => {
+                const filtros = {};
+                
+                if (elementos.filtroNivel && elementos.filtroNivel.value) {
+                    filtros.nivel = elementos.filtroNivel.value;
+                }
+                if (elementos.filtroIdioma && elementos.filtroIdioma.value) {
+                    filtros.idioma = elementos.filtroIdioma.value;
+                }
+                
+                cargarListaEstudiantes(filtros);
+            });
         }
+
+        // ===================================
+        // INICIALIZACIÓN
+        // ===================================
         
-        // Menos de 24 horas
-        if (diff < 86400000) {
-            return 'Hoy';
+        // Mostrar contenido principal
+        if (elementos.loadingDashboard) {
+            elementos.loadingDashboard.classList.add('hidden');
         }
-        // Menos de 48 horas
-        if (diff < 172800000) {
-            return 'Ayer';
+        if (elementos.contenidoDashboard) {
+            elementos.contenidoDashboard.classList.remove('hidden');
         }
-        // Más de 2 días
-        return fecha.toLocaleDateString('es-ES');
-    }
 
-    // ============================================
-    // 4. FUNCIONES DE UTILIDAD
-    // ============================================
+        // Cargar datos iniciales
+        await Promise.all([
+            cargarResumenGeneral(),
+            cargarListaEstudiantes(),
+            cargarAlertas()
+        ]);
 
-    function mostrarLoading(mostrar) {
-        if (mostrar) {
-            document.body.style.cursor = 'wait';
-        } else {
-            document.body.style.cursor = 'default';
-        }
-    }
-
-    function manejarError(mensaje, error) {
-        console.error('💥 Error en Dashboard Profesor:', error);
-        
-        if (window.toastManager) {
-            window.toastManager.error(mensaje);
-        }
-        
-        if (APP_CONFIG.ENV.DEBUG) {
-            console.trace();
-        }
-    }
-
-    // ============================================
-    // 5. INICIALIZACIÓN
-    // ============================================
-    
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        setTimeout(init, 100);
+        console.log('✅ Dashboard Profesor listo');
     }
 
 })();

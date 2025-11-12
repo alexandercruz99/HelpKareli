@@ -1,5 +1,5 @@
 // ==========================================================
-// server.js - SpeakLexi Backend - COMPLETO
+// server.js - SpeakLexi Backend - COMPLETO CON TESTING
 // ==========================================================
 
 require('dotenv').config();
@@ -24,6 +24,19 @@ const leccionRoutes = require('./routes/leccionRoutes');
 const multimediaRoutes = require('./routes/multimediaRoutes');
 const cursosRoutes = require('./routes/cursosRoutes');
 const ejercicioRoutes = require('./routes/ejercicioRoutes'); 
+
+// ==========================================================
+// RUTAS DE TESTING (SOLO DESARROLLO)
+// ==========================================================
+let testingRoutes = null;
+if (process.env.NODE_ENV === 'development') {
+    try {
+        testingRoutes = require('./routes/testingRoutes');
+        console.log('🧪 Rutas de testing cargadas (solo desarrollo)');
+    } catch (error) {
+        console.log('⚠️  No se pudieron cargar las rutas de testing:', error.message);
+    }
+}
 
 const app = express();
 
@@ -52,12 +65,19 @@ const initializeApp = async () => {
 // Seguridad
 app.use(helmet());
 
-// Rate limiting
+// Rate limiting (excluir rutas de testing en desarrollo)
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW) || 15 * 60 * 1000,
   max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
   message: {
     error: 'Demasiadas peticiones desde esta IP, intenta más tarde.'
+  },
+  skip: (req, res) => {
+    // Excluir rutas de testing del rate limiting en desarrollo
+    if (process.env.NODE_ENV === 'development' && req.path.startsWith('/api/testing')) {
+      return true;
+    }
+    return false;
   }
 });
 app.use(limiter);
@@ -96,119 +116,170 @@ app.use('/api/auth', authRoutes);
 app.use('/api/lecciones', leccionRoutes);
 app.use('/api/multimedia', multimediaRoutes);
 app.use('/api/cursos', cursosRoutes);
-app.use('/api/ejercicios', ejercicioRoutes); // ← NUEVO
+app.use('/api/ejercicios', ejercicioRoutes);
 
 // ==========================================================
-// RUTAS BÁSICAS DEL SISTEMA
+// RUTAS DE TESTING (SOLO EN DESARROLLO)
+// ==========================================================
+
+if (process.env.NODE_ENV === 'development' && testingRoutes) {
+    app.use('/api/testing', testingRoutes);
+    console.log('✅ Rutas de testing registradas en /api/testing');
+} else if (process.env.NODE_ENV !== 'development') {
+    console.log('🚫 Rutas de testing deshabilitadas en producción');
+}
+
+// ==========================================================
+// RUTAS BÁSICAS DEL SISTEMA (ACTUALIZADAS)
 // ==========================================================
 
 app.get('/api/health', async (req, res) => {
   const dbStatus = await testConnection();
   
-  res.json({ 
-    status: 'OK', 
-    message: 'SpeakLexi API funcionando correctamente',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0',
-    services: {
+  const services = {
       database: dbStatus ? 'connected' : 'disconnected',
       authentication: 'available',
       lessons: 'available',
       multimedia: 'available',
       courses: 'available',
-      exercises: 'available', // ← NUEVO
+      exercises: 'available',
       email: 'available'
-    }
+  };
+
+  // Agregar servicio de testing solo en desarrollo
+  if (process.env.NODE_ENV === 'development') {
+      services.testing = 'available';
+  }
+
+  res.json({ 
+    status: 'OK', 
+    message: 'SpeakLexi API funcionando correctamente',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    services: services
   });
 });
 
 app.get('/api/config', (req, res) => {
-  res.json({
-    appName: 'SpeakLexi',
-    version: '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
-    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
-    features: {
+  const features = {
       auth: true,
       users: false,
       lessons: true,
       multimedia: true,
       courses: true,
-      exercises: true, // ← NUEVO
+      exercises: true,
       progress: false
-    },
-    endpoints: {
+  };
+
+  const endpoints = {
       auth: '/api/auth',
       lecciones: '/api/lecciones',
       multimedia: '/api/multimedia',
       cursos: '/api/cursos',
-      ejercicios: '/api/ejercicios', // ← NUEVO
+      ejercicios: '/api/ejercicios',
       health: '/api/health',
       config: '/api/config'
-    }
+  };
+
+  // Agregar testing solo en desarrollo
+  if (process.env.NODE_ENV === 'development') {
+      features.testing = true;
+      endpoints.testing = '/api/testing';
+  }
+
+  res.json({
+    appName: 'SpeakLexi',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+    features: features,
+    endpoints: endpoints
   });
 });
 
 app.get('/', (req, res) => {
+  const availableEndpoints = [
+    'GET  /api/health - Estado del sistema',
+    'GET  /api/config - Configuración',
+    
+    '--- AUTENTICACIÓN ---',
+    'POST /api/auth/registro - Registro de usuario',
+    'POST /api/auth/login - Inicio de sesión',
+    'POST /api/auth/verificar - Verificación de email',
+    
+    '--- CURSOS ---',
+    'GET  /api/cursos - Listar todos los cursos',
+    'GET  /api/cursos/:id - Obtener curso específico',
+    'POST /api/cursos - Crear nuevo curso',
+    'GET  /api/cursos/:id/lecciones - Lecciones del curso',
+    'POST /api/cursos/:id/inscribir - Inscribirse',
+    
+    '--- LECCIONES ---',
+    'GET  /api/lecciones - Listar lecciones',
+    'GET  /api/lecciones/:id - Obtener lección específica',
+    'POST /api/lecciones - Crear nueva lección',
+    'PUT  /api/lecciones/:id - Actualizar lección',
+    
+    '--- EJERCICIOS ---', 
+    'GET  /api/ejercicios/leccion/:leccion_id - Ejercicios de lección',
+    'POST /api/ejercicios - Crear ejercicio',
+    'PUT  /api/ejercicios/:id - Actualizar ejercicio',
+    'POST /api/ejercicios/:id/validar - Validar respuesta',
+    
+    '--- MULTIMEDIA ---',
+    'GET  /api/multimedia/leccion/:leccionId - Multimedia de lección',
+    'POST /api/multimedia/subir - Subir archivo',
+    'DELETE /api/multimedia/:id - Eliminar archivo'
+  ];
+
+  // Agregar endpoints de testing solo en desarrollo
+  if (process.env.NODE_ENV === 'development') {
+    availableEndpoints.push(
+      '--- TESTING (Solo Desarrollo) ---',
+      'GET  /api/testing/status - Estado del sistema de testing',
+      'GET  /api/testing/estadisticas - Estadísticas de datos de prueba',
+      'POST /api/testing/generar-usuarios - Generar usuarios de prueba',
+      'POST /api/testing/generar-progreso - Generar progreso aleatorio',
+      'DELETE /api/testing/limpiar-datos - Eliminar todos los datos de prueba'
+    );
+  }
+
   res.json({ 
     message: 'Bienvenido a SpeakLexi API',
     version: '1.0.0',
     description: 'Sistema de aprendizaje de idiomas',
-    availableEndpoints: [
-      'GET  /api/health - Estado del sistema',
-      'GET  /api/config - Configuración',
-      
-      '--- AUTENTICACIÓN ---',
-      'POST /api/auth/registro - Registro de usuario',
-      'POST /api/auth/login - Inicio de sesión',
-      'POST /api/auth/verificar - Verificación de email',
-      
-      '--- CURSOS ---',
-      'GET  /api/cursos - Listar todos los cursos',
-      'GET  /api/cursos/:id - Obtener curso específico',
-      'POST /api/cursos - Crear nuevo curso',
-      'GET  /api/cursos/:id/lecciones - Lecciones del curso',
-      'POST /api/cursos/:id/inscribir - Inscribirse',
-      
-      '--- LECCIONES ---',
-      'GET  /api/lecciones - Listar lecciones',
-      'GET  /api/lecciones/:id - Obtener lección específica',
-      'POST /api/lecciones - Crear nueva lección',
-      'PUT  /api/lecciones/:id - Actualizar lección',
-      
-      '--- EJERCICIOS ---', 
-      'GET  /api/ejercicios/leccion/:leccion_id - Ejercicios de lección',
-      'POST /api/ejercicios - Crear ejercicio',
-      'PUT  /api/ejercicios/:id - Actualizar ejercicio',
-      'POST /api/ejercicios/:id/validar - Validar respuesta',
-      
-      '--- MULTIMEDIA ---',
-      'GET  /api/multimedia/leccion/:leccionId - Multimedia de lección',
-      'POST /api/multimedia/subir - Subir archivo',
-      'DELETE /api/multimedia/:id - Eliminar archivo'
-    ],
+    environment: process.env.NODE_ENV || 'development',
+    availableEndpoints: availableEndpoints,
     documentation: 'Consulta la documentación para más detalles'
   });
 });
 
 // ==========================================================
-// MANEJO DE ERRORES
+// MANEJO DE ERRORES (MEJORADO)
 // ==========================================================
 
 app.use('*', (req, res) => {
+  const availableEndpoints = [
+    '/api/health', 
+    '/api/config', 
+    '/api/auth/*',
+    '/api/cursos/*',
+    '/api/lecciones/*',
+    '/api/multimedia/*',
+    '/api/ejercicios/*'
+  ];
+
+  // Agregar testing solo en desarrollo
+  if (process.env.NODE_ENV === 'development') {
+    availableEndpoints.push('/api/testing/*');
+  }
+
   res.status(404).json({
     error: 'Ruta no encontrada',
     path: req.originalUrl,
     method: req.method,
-    availableEndpoints: [
-      '/api/health', 
-      '/api/config', 
-      '/api/auth/*',
-      '/api/cursos/*',
-      '/api/lecciones/*',
-      '/api/multimedia/*',
-      '/api/ejercicios/*' // ← NUEVO
-    ],
+    availableEndpoints: availableEndpoints,
     suggestion: 'Verifica la URL o consulta GET / para ver endpoints disponibles'
   });
 });
@@ -230,6 +301,18 @@ app.use((error, req, res, next) => {
     });
   }
   
+  // Manejar errores de testing específicos
+  if (req.path.startsWith('/api/testing')) {
+    return res.status(500).json({
+      error: 'Error en sistema de testing',
+      message: process.env.NODE_ENV === 'development' ? error.message : 'Error interno',
+      development: process.env.NODE_ENV === 'development' ? {
+        stack: error.stack,
+        details: 'Verifica la consola del servidor para más detalles'
+      } : undefined
+    });
+  }
+  
   res.status(500).json({
     error: 'Error interno del servidor',
     message: process.env.NODE_ENV === 'development' ? error.message : 'Algo salió mal. Por favor, intenta nuevamente.'
@@ -237,7 +320,7 @@ app.use((error, req, res, next) => {
 });
 
 // ==========================================================
-// INICIAR SERVIDOR
+// INICIAR SERVIDOR (ACTUALIZADO)
 // ==========================================================
 
 const PORT = process.env.PORT || 5000;
@@ -245,37 +328,71 @@ const HOST = process.env.HOST || 'localhost';
 
 initializeApp().then(() => {
   app.listen(PORT, HOST, () => {
-    console.log('\n' + '='.repeat(50));
+    console.log('\n' + '='.repeat(60));
     console.log('🚀 Servidor SpeakLexi INICIADO CORRECTAMENTE');
-    console.log('='.repeat(50));
+    console.log('='.repeat(60));
     console.log(`📍 URL: http://${HOST}:${PORT}`);
     console.log(`📊 Entorno: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🔐 Autenticación: http://${HOST}:${PORT}/api/auth`);
     console.log(`📚 Cursos: http://${HOST}:${PORT}/api/cursos`);
     console.log(`📖 Lecciones: http://${HOST}:${PORT}/api/lecciones`);
-    console.log(`🎯 Ejercicios: http://${HOST}:${PORT}/api/ejercicios`); // ← NUEVO
+    console.log(`🎯 Ejercicios: http://${HOST}:${PORT}/api/ejercicios`);
     console.log(`🎬 Multimedia: http://${HOST}:${PORT}/api/multimedia`);
+    
+    // Mostrar testing solo en desarrollo
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🧪 Testing: http://${HOST}:${PORT}/api/testing`);
+      console.log(`🔧 Generador: http://localhost:3000/pages/testing/generador-datos.html`);
+    }
+    
     console.log(`❤️  Health: http://${HOST}:${PORT}/api/health`);
     console.log(`📝 Config: http://${HOST}:${PORT}/api/config`);
-    console.log('='.repeat(50));
+    console.log('='.repeat(60));
+    
+    // Mensaje especial para testing
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🧪 GENERADOR DE DATOS DISPONIBLE:');
+      console.log('   • Abre: http://localhost:3000/pages/testing/generador-datos.html');
+      console.log('   • Token: speaklexi-test-2024');
+      console.log('   • Password: Test123!');
+      console.log('='.repeat(60));
+    }
+    
     console.log('✅ ¡Backend listo para recibir peticiones!');
-    console.log('='.repeat(50) + '\n');
+    console.log('='.repeat(60) + '\n');
   });
 }).catch(error => {
   console.error('❌ Error fatal inicializando la aplicación:', error);
   process.exit(1);
 });
 
+// ==========================================================
+// MANEJO DE SEÑALES DE CIERRE
+// ==========================================================
+
 process.on('SIGINT', () => {
   console.log('\n🔻 Recibida señal de cierre (SIGINT)');
   console.log('👋 Cerrando servidor SpeakLexi...');
+  console.log('✅ Servidor cerrado correctamente');
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
   console.log('\n🔻 Recibida señal de terminación (SIGTERM)');
   console.log('👋 Cerrando servidor SpeakLexi...');
+  console.log('✅ Servidor cerrado correctamente');
   process.exit(0);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('❌ Excepción no capturada:', error);
+  console.log('🔄 Reiniciando servidor...');
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Promesa rechazada no manejada:', reason);
+  console.log('🔄 Continuando ejecución...');
 });
 
 module.exports = app;

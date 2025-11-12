@@ -1,4 +1,3 @@
-// frontend/assets/js/pages/estudiante/dashboard.js
 import { apiClient } from '../../core/api-client.js';
 
 class DashboardEstudiante {
@@ -19,8 +18,8 @@ class DashboardEstudiante {
     async init() {
         try {
             await this.cargarDatosUsuario();
-            await this.cargarLecciones();
-            await this.cargarDatosAdicionales();
+            await this.cargarResumenEstudiante();
+            await this.cargarLeccionesRecomendadas();
             this.renderizarDashboard();
             this.configurarEventListeners();
             this.configurarAnimacionesScroll();
@@ -48,73 +47,90 @@ class DashboardEstudiante {
         }
     }
 
-    async cargarLecciones() {
+    async cargarResumenEstudiante() {
         try {
-            const { nivel_actual, idioma_aprendizaje } = this.usuario;
-            const response = await apiClient.get(`/cursos/nivel/${nivel_actual}/idioma/${idioma_aprendizaje}`);
-            
+            const response = await apiClient.get('/api/progreso/resumen');
             if (response.success) {
-                this.lecciones = response.data;
+                this.datosPerfil = response.data;
+                console.log('📊 Datos del dashboard cargados:', this.datosPerfil);
             } else {
-                this.lecciones = [];
+                throw new Error('No se pudieron cargar los datos del dashboard');
             }
         } catch (error) {
-            console.error('Error cargando lecciones:', error);
-            this.lecciones = [];
-        }
-    }
-
-    async cargarDatosAdicionales() {
-        try {
-            // Cargar cursos del estudiante
-            const cursosResponse = await apiClient.get('/estudiante/mis-cursos');
-            if (cursosResponse.success) {
-                this.misCursos = cursosResponse.data;
-                if (this.misCursos.length > 0) {
-                    this.estado.cursoActual = this.misCursos.find(curso => curso.progreso_general > 0) || this.misCursos[0];
-                }
-            }
-
-            // Cargar estadísticas si están disponibles
-            try {
-                const statsResponse = await apiClient.get('/estudiante/estadisticas');
-                if (statsResponse.success) {
-                    this.datosPerfil = statsResponse.data;
-                }
-            } catch (statsError) {
-                console.log('Endpoint de estadísticas no disponible, usando datos básicos');
-                this.usarDatosEjemplo();
-            }
-        } catch (error) {
-            console.error('Error cargando datos adicionales:', error);
+            console.error('Error cargando resumen estudiante:', error);
             this.usarDatosEjemplo();
         }
     }
 
-    usarDatosEjemplo() {
-        this.datosPerfil = {
-            perfil: {
-                nombre: this.usuario?.nombre || 'Usuario',
-                nivel_actual: 'A1',
-                idioma_aprendizaje: 'Inglés'
-            },
-            estadisticas: {
-                dias_racha: 7,
-                total_xp: 1850,
-                lecciones_completadas: 12,
-                nivel_usuario: 4,
-                meta_diaria: 30
+    async cargarLeccionesRecomendadas() {
+        try {
+            const response = await apiClient.get('/api/progreso/lecciones-recomendadas');
+            if (response.success) {
+                this.lecciones = response.data.lecciones_recomendadas || [];
+                console.log('📚 Lecciones recomendadas cargadas:', this.lecciones);
+            } else {
+                this.lecciones = [];
             }
-        };
+        } catch (error) {
+            console.error('Error cargando lecciones recomendadas:', error);
+            this.lecciones = [];
+        }
+    }
+
+    usarDatosEjemplo() {
+        // Solo usar datos de ejemplo si no hay datos reales
+        if (!this.datosPerfil) {
+            this.datosPerfil = {
+                perfil: {
+                    nombre: this.usuario?.nombre || 'Usuario',
+                    primer_apellido: '',
+                    nivel_actual: 'A1',
+                    idioma_aprendizaje: 'Inglés',
+                    total_xp: 0
+                },
+                estadisticas: {
+                    lecciones_completadas: 0,
+                    lecciones_iniciadas: 0,
+                    tiempo_total_minutos: 0,
+                    promedio_progreso: 0
+                },
+                lecciones_en_progreso: [],
+                lecciones_completadas: [],
+                logros_recientes: []
+            };
+        }
+        
+        if (this.lecciones.length === 0) {
+            this.lecciones = [
+                {
+                    id: 1,
+                    titulo: 'Introducción al Inglés',
+                    descripcion: 'Aprende los conceptos básicos del inglés',
+                    nivel: 'A1',
+                    idioma: 'Inglés',
+                    duracion_minutos: 30,
+                    progreso_actual: 0
+                },
+                {
+                    id: 2,
+                    titulo: 'Saludos y Presentaciones',
+                    descripcion: 'Aprende a saludar y presentarte en inglés',
+                    nivel: 'A1',
+                    idioma: 'Inglés',
+                    duracion_minutos: 45,
+                    progreso_actual: 0
+                }
+            ];
+        }
         
         if (this.misCursos.length === 0) {
             this.misCursos = [{
-                curso_id: 1,
-                curso_nombre: 'Fundamentos del Inglés',
+                id: 1,
+                nombre: 'Fundamentos del Inglés',
                 nivel: 'A1',
-                progreso_general: 35,
-                lecciones_completadas: 5,
-                total_lecciones_curso: 10
+                descripcion: 'Curso básico de inglés para principiantes',
+                idioma: 'Inglés',
+                progreso_general: 0
             }];
         }
         
@@ -133,40 +149,43 @@ class DashboardEstudiante {
     }
 
     generarHTMLCompleto() {
-        const perfil = this.datosPerfil?.perfil || this.datosPerfil || {};
+        const perfil = this.datosPerfil?.perfil || {};
         const estadisticas = this.datosPerfil?.estadisticas || {};
-        const nombreCompleto = `${perfil.nombre || this.usuario.nombre || 'Usuario'} ${perfil.primer_apellido || ''}`;
+        const nombreCompleto = `${perfil.nombre || this.usuario?.nombre || 'Usuario'} ${perfil.primer_apellido || ''}`;
         const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(nombreCompleto)}&background=6366f1&color=fff`;
+
+        // Calcular lecciones en progreso
+        const leccionesEnProgreso = estadisticas.lecciones_iniciadas - estadisticas.lecciones_completadas;
 
         return `
             <!-- Header Principal -->
             <div class="mb-8">
                 <h1 class="text-3xl font-bold text-gray-800 mb-2" id="greeting">
-                    ¡Bienvenido, ${this.usuario.nombre || 'Estudiante'}!
+                    ¡Bienvenido, ${this.usuario?.nombre || 'Estudiante'}!
                 </h1>
                 <div class="flex flex-wrap gap-4 mb-6">
                     <div class="bg-blue-50 px-4 py-2 rounded-lg">
                         <span class="text-sm text-blue-600">Nivel:</span>
                         <span class="font-semibold text-blue-800 ml-2" id="nivel-actual">
-                            ${this.usuario.nivel_actual} - ${this.usuario.idioma_aprendizaje}
+                            ${perfil.nivel_actual || 'A1'}
                         </span>
                     </div>
                     <div class="bg-green-50 px-4 py-2 rounded-lg">
                         <span class="text-sm text-green-600">Idioma:</span>
                         <span class="font-semibold text-green-800 ml-2" id="idioma-aprendizaje">
-                            ${this.usuario.idioma_aprendizaje}
+                            ${perfil.idioma_aprendizaje || 'Inglés'}
                         </span>
                     </div>
                     <div class="bg-purple-50 px-4 py-2 rounded-lg">
                         <span class="text-sm text-purple-600">XP Total:</span>
                         <span class="font-semibold text-purple-800 ml-2" id="total-xp">
-                            ${estadisticas.total_xp || 0}
+                            ${perfil.total_xp || 0} XP
                         </span>
                     </div>
                     <div class="bg-orange-50 px-4 py-2 rounded-lg">
-                        <span class="text-sm text-orange-600">Racha:</span>
-                        <span class="font-semibold text-orange-800 ml-2" id="dias-racha">
-                            ${estadisticas.dias_racha || 0} días
+                        <span class="text-sm text-orange-600">En Progreso:</span>
+                        <span class="font-semibold text-orange-800 ml-2" id="lecciones-en-progreso">
+                            ${leccionesEnProgreso || 0} lecciones
                         </span>
                     </div>
                 </div>
@@ -176,8 +195,8 @@ class DashboardEstudiante {
             <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
                 <!-- Columna Izquierda - Estadísticas -->
                 <div class="xl:col-span-1 space-y-8">
-                    ${this.generarTarjetaEstadisticas(estadisticas)}
-                    ${this.generarTarjetaLeaderboard(avatarUrl, estadisticas)}
+                    ${this.generarTarjetaEstadisticas(estadisticas, perfil)}
+                    ${this.generarTarjetaLeaderboard(avatarUrl, perfil)}
                     ${this.generarTarjetaProgresoDiario(estadisticas)}
                 </div>
 
@@ -192,7 +211,9 @@ class DashboardEstudiante {
         `;
     }
 
-    generarTarjetaEstadisticas(estadisticas) {
+    generarTarjetaEstadisticas(estadisticas, perfil) {
+        const leccionesEnProgreso = estadisticas.lecciones_iniciadas - estadisticas.lecciones_completadas;
+
         return `
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
                 <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-6">Tu Progreso</h3>
@@ -203,9 +224,9 @@ class DashboardEstudiante {
                                 <i class="fas fa-fire text-blue-600 dark:text-blue-400 text-lg"></i>
                             </div>
                             <div>
-                                <p class="text-sm text-gray-500 dark:text-gray-400">Días de Racha</p>
-                                <p class="text-2xl font-bold text-gray-800 dark:text-white" id="dias-racha">
-                                    ${estadisticas.dias_racha || 0}
+                                <p class="text-sm text-gray-500 dark:text-gray-400">XP Total</p>
+                                <p class="text-2xl font-bold text-gray-800 dark:text-white" id="total-xp">
+                                    ${perfil.total_xp || 0}
                                 </p>
                             </div>
                         </div>
@@ -214,21 +235,7 @@ class DashboardEstudiante {
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-4">
                             <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
-                                <i class="fas fa-star text-green-600 dark:text-green-400 text-lg"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500 dark:text-gray-400">XP Total</p>
-                                <p class="text-2xl font-bold text-gray-800 dark:text-white" id="total-xp">
-                                    ${estadisticas.total_xp || 0}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
-                                <i class="fas fa-check-circle text-purple-600 dark:text-purple-400 text-lg"></i>
+                                <i class="fas fa-check-circle text-green-600 dark:text-green-400 text-lg"></i>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-500 dark:text-gray-400">Lecciones Completadas</p>
@@ -239,16 +246,30 @@ class DashboardEstudiante {
                         </div>
                     </div>
 
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-play-circle text-purple-600 dark:text-purple-400 text-lg"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">En Progreso</p>
+                                <p class="text-2xl font-bold text-gray-800 dark:text-white" id="lecciones-en-progreso">
+                                    ${leccionesEnProgreso || 0}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
                         <div class="flex justify-between items-center mb-2">
-                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Nivel Actual</span>
-                            <span class="text-sm font-bold text-blue-600 dark:text-blue-400" id="nivel-usuario">
-                                ${estadisticas.nivel_usuario || 1}
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Progreso Promedio</span>
+                            <span class="text-sm font-bold text-blue-600 dark:text-blue-400">
+                                ${estadisticas.promedio_progreso || 0}%
                             </span>
                         </div>
                         <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                             <div class="bg-blue-500 h-2 rounded-full transition-all duration-1000" 
-                                 style="width: ${((estadisticas.nivel_usuario || 1) % 10) * 10}%"></div>
+                                 style="width: ${estadisticas.promedio_progreso || 0}%"></div>
                         </div>
                     </div>
                 </div>
@@ -256,16 +277,16 @@ class DashboardEstudiante {
         `;
     }
 
-    generarTarjetaLeaderboard(avatarUrl, estadisticas) {
+    generarTarjetaLeaderboard(avatarUrl, perfil) {
         return `
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
                 <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Tu Ranking</h3>
                 <div class="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl">
                     <img src="${avatarUrl}" alt="Avatar" class="w-12 h-12 rounded-full" id="leaderboard-avatar">
                     <div class="flex-1">
-                        <p class="font-semibold text-gray-800 dark:text-white">${this.usuario.nombre || 'Estudiante'}</p>
+                        <p class="font-semibold text-gray-800 dark:text-white">${this.usuario?.nombre || 'Estudiante'}</p>
                         <p class="text-sm text-gray-600 dark:text-gray-400" id="leaderboard-xp">
-                            ${estadisticas.total_xp || 0} XP
+                            ${perfil.total_xp || 0} XP
                         </p>
                     </div>
                     <div class="bg-yellow-100 dark:bg-yellow-900/30 px-3 py-1 rounded-full">
@@ -277,24 +298,28 @@ class DashboardEstudiante {
     }
 
     generarTarjetaProgresoDiario(estadisticas) {
+        const tiempoEstudiado = estadisticas.tiempo_total_minutos || 0;
+        const metaDiaria = 30; // 30 minutos de meta diaria
+        const porcentajeCompletado = Math.min(100, Math.round((tiempoEstudiado / metaDiaria) * 100));
+
         return `
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
                 <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Meta Diaria</h3>
                 <div class="text-center">
                     <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-400 to-blue-500 rounded-full mb-4">
                         <span class="text-white font-bold text-lg" id="meta-diaria">
-                            ${estadisticas.meta_diaria || 30}
+                            ${tiempoEstudiado}
                         </span>
                     </div>
-                    <p class="text-gray-600 dark:text-gray-400 text-sm">minutos hoy</p>
+                    <p class="text-gray-600 dark:text-gray-400 text-sm">minutos estudiados</p>
                 </div>
                 <div class="mt-4 space-y-2">
                     <div class="flex justify-between text-sm">
                         <span class="text-gray-500 dark:text-gray-400">Completado</span>
-                        <span class="font-medium text-green-600 dark:text-green-400">${Math.min(100, Math.floor(Math.random() * 100))}%</span>
+                        <span class="font-medium text-green-600 dark:text-green-400">${porcentajeCompletado}%</span>
                     </div>
                     <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div class="bg-green-500 h-2 rounded-full transition-all duration-1000" style="width: ${Math.min(100, Math.floor(Math.random() * 100))}%"></div>
+                        <div class="bg-green-500 h-2 rounded-full transition-all duration-1000" style="width: ${porcentajeCompletado}%"></div>
                     </div>
                 </div>
             </div>
@@ -302,40 +327,50 @@ class DashboardEstudiante {
     }
 
     generarTarjetaContinuarAprendizaje() {
-        const leccionActiva = this.lecciones.find(l => l.progreso > 0 && l.progreso < 100);
-        const siguienteLeccion = this.lecciones.find(l => !l.completada && this.estaLeccionBloqueada(l) === false);
-        
-        if (!leccionActiva && !siguienteLeccion) return '';
+        // Buscar lecciones en progreso primero
+        const leccionesEnProgreso = this.datosPerfil?.lecciones_en_progreso || [];
+        let leccionActiva = leccionesEnProgreso[0];
 
-        const leccion = leccionActiva || siguienteLeccion;
-        
+        // Si no hay lecciones en progreso, usar la primera recomendada
+        if (!leccionActiva && this.lecciones.length > 0) {
+            leccionActiva = {
+                id: this.lecciones[0].id,
+                titulo: this.lecciones[0].titulo,
+                descripcion: this.lecciones[0].descripcion,
+                progreso: this.lecciones[0].progreso_actual || 0,
+                nivel: this.lecciones[0].nivel
+            };
+        }
+
+        if (!leccionActiva) return '';
+
         return `
             <div class="bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl shadow-lg p-6 text-white">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-2xl font-bold">Continuar Aprendizaje</h2>
-                    <span class="bg-white/20 px-3 py-1 rounded-full text-sm">${this.usuario.nivel_actual}</span>
+                    <span class="bg-white/20 px-3 py-1 rounded-full text-sm">${leccionActiva.nivel || this.usuario?.nivel_actual || 'A1'}</span>
                 </div>
                 
                 <div class="mb-4">
-                    <h3 class="text-xl font-semibold mb-2">${leccion.titulo}</h3>
-                    <p class="text-purple-100 mb-4">${leccion.descripcion || 'Continúa tu progreso en esta lección'}</p>
+                    <h3 class="text-xl font-semibold mb-2">${leccionActiva.titulo}</h3>
+                    <p class="text-purple-100 mb-4">${leccionActiva.descripcion || 'Continúa tu progreso en esta lección'}</p>
                     
                     <div class="space-y-2">
                         <div class="flex justify-between text-sm">
                             <span>Progreso</span>
-                            <span>${leccion.progreso || 0}%</span>
+                            <span>${leccionActiva.progreso || 0}%</span>
                         </div>
                         <div class="w-full bg-white/20 rounded-full h-3">
                             <div class="bg-white h-3 rounded-full transition-all duration-1000" 
-                                 style="width: ${leccion.progreso || 0}%"></div>
+                                 style="width: ${leccionActiva.progreso || 0}%"></div>
                         </div>
                     </div>
                 </div>
                 
                 <button 
-                    onclick="dashboardEstudiante.iniciarLeccion(${leccion.id})"
+                    onclick="dashboardEstudiante.iniciarLeccion(${leccionActiva.id})"
                     class="w-full bg-white text-purple-600 font-semibold py-3 rounded-lg hover:bg-purple-50 transition-colors">
-                    ${leccion.progreso > 0 ? 'Continuar Lección' : 'Comenzar Lección'}
+                    ${leccionActiva.progreso > 0 ? 'Continuar Lección' : 'Comenzar Lección'}
                 </button>
             </div>
         `;
@@ -345,7 +380,7 @@ class DashboardEstudiante {
         return `
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
                 <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Tus Lecciones</h2>
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Lecciones Recomendadas</h2>
                     <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm">
                         ${this.lecciones.length} disponibles
                     </span>
@@ -372,74 +407,39 @@ class DashboardEstudiante {
     }
 
     generarLeccionesRecientes() {
-        const leccionesRecientes = this.lecciones.slice(0, 5);
+        const leccionesCompletadas = this.datosPerfil?.lecciones_completadas || [];
+        const leccionesRecientes = leccionesCompletadas.slice(0, 5);
         
         return `
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
                 <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Lecciones Recientes</h3>
                 <div class="space-y-4">
-                    ${leccionesRecientes.map((leccion, index) => this.renderizarLeccionReciente(leccion, index)).join('')}
+                    ${leccionesRecientes.length > 0 ? 
+                        leccionesRecientes.map((leccion, index) => this.renderizarLeccionReciente(leccion, index)).join('') :
+                        '<p class="text-gray-500 text-center py-4">Aún no has completado lecciones</p>'
+                    }
                 </div>
             </div>
         `;
     }
 
     renderizarLeccionReciente(leccion, index) {
-        const completada = leccion.completada || false;
-        const progreso = leccion.progreso || 0;
-        
-        if (completada) {
-            return `
-                <div class="flex items-center gap-4 p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 hover:shadow-md transition-all cursor-pointer group" 
-                     onclick="dashboardEstudiante.iniciarLeccion(${leccion.id})"
-                     data-leccion-id="${leccion.id}">
-                    <div class="w-12 h-12 bg-green-100 dark:bg-green-800 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <i class="fas fa-check text-green-600 dark:text-green-400 text-lg"></i>
-                    </div>
-                    <div class="flex-1">
-                        <p class="font-semibold text-gray-900 dark:text-white">${leccion.titulo}</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">Completado - ${leccion.duracion_estimada || 30} min</p>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-2xl">✅</span>
-                    </div>
+        return `
+            <div class="flex items-center gap-4 p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 hover:shadow-md transition-all cursor-pointer group" 
+                 onclick="dashboardEstudiante.iniciarLeccion(${leccion.id})"
+                 data-leccion-id="${leccion.id}">
+                <div class="w-12 h-12 bg-green-100 dark:bg-green-800 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <i class="fas fa-check text-green-600 dark:text-green-400 text-lg"></i>
                 </div>
-            `;
-        } else if (progreso > 0) {
-            return `
-                <div class="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all cursor-pointer group" 
-                     onclick="dashboardEstudiante.iniciarLeccion(${leccion.id})"
-                     data-leccion-id="${leccion.id}">
-                    <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <i class="fas fa-play text-purple-600 dark:text-purple-400 text-lg"></i>
-                    </div>
-                    <div class="flex-1">
-                        <p class="font-semibold text-gray-900 dark:text-white">${leccion.titulo}</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">En progreso - ${progreso}%</p>
-                        <div class="mt-2 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-                            <div class="bg-purple-500 rounded-full h-2 transition-all duration-1000" style="width: ${progreso}%"></div>
-                        </div>
-                    </div>
-                    <span class="text-2xl">📖</span>
+                <div class="flex-1">
+                    <p class="font-semibold text-gray-900 dark:text-white">${leccion.titulo}</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Completado - ${this.formatearFecha(leccion.fecha_completada)}</p>
                 </div>
-            `;
-        } else {
-            const bloqueada = this.estaLeccionBloqueada(leccion);
-            return `
-                <div class="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all cursor-pointer group ${bloqueada ? 'opacity-50' : ''}" 
-                     onclick="${!bloqueada ? `dashboardEstudiante.iniciarLeccion(${leccion.id})` : ''}"
-                     data-leccion-id="${leccion.id}">
-                    <div class="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-xl flex items-center justify-center">
-                        <i class="fas ${bloqueada ? 'fa-lock' : 'fa-play'} text-gray-400 dark:text-gray-500 text-lg"></i>
-                    </div>
-                    <div class="flex-1">
-                        <p class="font-semibold ${bloqueada ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}">${leccion.titulo}</p>
-                        <p class="text-sm ${bloqueada ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'}">${leccion.duracion_estimada || 30} minutos</p>
-                    </div>
-                    <span class="text-2xl ${bloqueada ? 'opacity-50' : ''}">${bloqueada ? '🔒' : '📖'}</span>
+                <div class="text-right">
+                    <span class="text-2xl">✅</span>
                 </div>
-            `;
-        }
+            </div>
+        `;
     }
 
     renderizarSinLecciones() {
@@ -452,22 +452,22 @@ class DashboardEstudiante {
     }
 
     renderizarTarjetaLeccion(leccion) {
-        const bloqueada = this.estaLeccionBloqueada(leccion);
-        const progreso = leccion.progreso || 0;
-        const completada = leccion.completada || false;
+        const progreso = leccion.progreso_actual || 0;
+        const estaEnProgreso = progreso > 0 && progreso < 100;
+        const estaCompletada = progreso >= 100;
         
         return `
-            <div class="bg-white rounded-xl shadow-md border border-gray-200 p-6 transition-all duration-200 hover:shadow-lg ${
-                bloqueada ? 'opacity-60 grayscale' : ''
-            }">
+            <div class="bg-white rounded-xl shadow-md border border-gray-200 p-6 transition-all duration-200 hover:shadow-lg">
                 <div class="flex justify-between items-start mb-4">
                     <h3 class="text-xl font-bold text-gray-800">${leccion.titulo}</h3>
                     <div class="flex items-center gap-2">
-                        ${completada ? 
+                        ${estaCompletada ? 
                             '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Completada</span>' : 
-                            '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">En progreso</span>'
+                            (estaEnProgreso ? 
+                                '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">En progreso</span>' :
+                                '<span class="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">Nueva</span>'
+                            )
                         }
-                        ${bloqueada ? '<span class="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">Bloqueada</span>' : ''}
                     </div>
                 </div>
                 
@@ -475,38 +475,30 @@ class DashboardEstudiante {
                 
                 <div class="space-y-3 mb-4">
                     <div class="flex justify-between text-sm text-gray-500">
-                        <span>Duración: ${leccion.duracion_estimada || 'N/A'}</span>
-                        <span>Orden: ${leccion.orden}</span>
+                        <span>Duración: ${leccion.duracion_minutos || 'N/A'} min</span>
+                        <span>Nivel: ${leccion.nivel || 'N/A'}</span>
                     </div>
                     
-                    <div class="space-y-1">
-                        <div class="flex justify-between text-sm">
-                            <span class="text-gray-600">Progreso</span>
-                            <span class="font-medium text-blue-600">${progreso}%</span>
+                    ${progreso > 0 ? `
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Progreso</span>
+                                <span class="font-medium text-blue-600">${progreso}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                                     style="width: ${progreso}%"></div>
+                            </div>
                         </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="bg-blue-500 h-2 rounded-full transition-all duration-300" 
-                                 style="width: ${progreso}%"></div>
-                        </div>
-                    </div>
+                    ` : ''}
                 </div>
                 
                 <div class="flex gap-2">
                     <button 
                         onclick="dashboardEstudiante.iniciarLeccion(${leccion.id})"
-                        class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-                        ${bloqueada ? 'disabled' : ''}>
+                        class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
                         ${progreso > 0 ? 'Continuar' : 'Iniciar'}
                     </button>
-                    
-                    ${progreso > 0 ? `
-                        <button 
-                            onclick="dashboardEstudiante.reiniciarLeccion(${leccion.id})"
-                            class="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                            title="Reiniciar lección">
-                            ↻
-                        </button>
-                    ` : ''}
                 </div>
             </div>
         `;
@@ -551,12 +543,21 @@ class DashboardEstudiante {
         `;
     }
 
-    estaLeccionBloqueada(leccion) {
-        const indice = this.lecciones.findIndex(l => l.id === leccion.id);
-        if (indice === 0) return false;
+    formatearFecha(fecha) {
+        if (!fecha) return 'Fecha no disponible';
+        const date = new Date(fecha);
+        const ahora = new Date();
+        const diff = ahora - date;
+        const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+        if (dias === 0) return 'Hoy';
+        if (dias === 1) return 'Ayer';
+        if (dias < 7) return `Hace ${dias} días`;
         
-        const leccionAnterior = this.lecciones[indice - 1];
-        return !leccionAnterior.completada;
+        return date.toLocaleDateString('es-MX', { 
+            day: 'numeric', 
+            month: 'short' 
+        });
     }
 
     async iniciarLeccion(leccionId) {
@@ -597,7 +598,7 @@ class DashboardEstudiante {
 
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden && this.usuario) {
-                setTimeout(() => this.cargarDatosAdicionales(), 1000);
+                setTimeout(() => this.cargarResumenEstudiante(), 1000);
             }
         });
     }

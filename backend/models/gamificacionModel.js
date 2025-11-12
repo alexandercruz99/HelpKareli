@@ -3,393 +3,426 @@ const db = require('../config/database');
 const pool = db.pool || db;
 
 /**
- * MODELO: Gamificación (Puntos, Niveles, Rachas, Rankings, Logros)
- * RF-11: Otorgar recompensas
- * RF-12: Generar tablas de clasificación
- * 
- * Tabla principal: perfil_estudiantes
- * Campos: total_xp, nivel_xp, racha_dias, fecha_ultima_racha
+ * MODELO: Gamificación (XP, Logros, Rachas)
+ * Integración con SpeakLexi 2.0
  */
 
-// Configuración de niveles (debe coincidir con app-config.js)
-const NIVELES = [
-    { nivel: 1, xp_requerido: 0 },
-    { nivel: 2, xp_requerido: 100 },
-    { nivel: 3, xp_requerido: 250 },
-    { nivel: 4, xp_requerido: 500 },
-    { nivel: 5, xp_requerido: 1000 },
-    { nivel: 6, xp_requerido: 2000 },
-    { nivel: 7, xp_requerido: 3500 },
-    { nivel: 8, xp_requerido: 5500 },
-    { nivel: 9, xp_requerido: 8000 },
-    { nivel: 10, xp_requerido: 12000 }
+// Configuración de niveles CEFR basados en XP
+const NIVELES_CEFR = [
+    { nivel: 'A1', xp_requerido: 0 },
+    { nivel: 'A2', xp_requerido: 100 },
+    { nivel: 'B1', xp_requerido: 300 },
+    { nivel: 'B2', xp_requerido: 600 },
+    { nivel: 'C1', xp_requerido: 1000 },
+    { nivel: 'C2', xp_requerido: 1500 }
 ];
 
 /**
- * ✅ EJEMPLO COMPLETO - Calcular nivel basado en XP total
+ * Calcular nivel CEFR según XP total
+ * @param {number} xpTotal - Total de XP del usuario
+ * @returns {string} Nivel CEFR (A1, A2, B1, B2, C1, C2)
  */
-function calcularNivelPorXP(totalXP) {
-    let nivel = 1;
-    
-    for (let i = NIVELES.length - 1; i >= 0; i--) {
-        if (totalXP >= NIVELES[i].xp_requerido) {
-            nivel = NIVELES[i].nivel;
-            break;
+function calcularNivelPorXP(xpTotal) {
+    for (let i = NIVELES_CEFR.length - 1; i >= 0; i--) {
+        if (xpTotal >= NIVELES_CEFR[i].xp_requerido) {
+            return NIVELES_CEFR[i].nivel;
         }
     }
-    
-    // Calcular progreso hasta siguiente nivel
-    const nivelActual = NIVELES.find(n => n.nivel === nivel);
-    const siguienteNivel = NIVELES.find(n => n.nivel === nivel + 1);
-    
-    let progreso_siguiente = 100;
-    let xp_faltante = 0;
-    
-    if (siguienteNivel) {
-        const xpEnNivelActual = totalXP - nivelActual.xp_requerido;
-        const xpNecesario = siguienteNivel.xp_requerido - nivelActual.xp_requerido;
-        progreso_siguiente = Math.round((xpEnNivelActual / xpNecesario) * 100);
-        xp_faltante = siguienteNivel.xp_requerido - totalXP;
-    }
-    
-    return {
-        nivel,
-        progreso_siguiente,
-        xp_faltante,
-        xp_nivel_actual: nivelActual.xp_requerido,
-        xp_siguiente_nivel: siguienteNivel ? siguienteNivel.xp_requerido : null
-    };
+    return 'A1';
 }
 
 /**
- * ✅ EJEMPLO COMPLETO - Otorgar puntos XP a un usuario
+ * Otorgar XP a un estudiante
+ * @param {number} usuarioId - ID del usuario
+ * @param {number} cantidad - Cantidad de XP a otorgar
+ * @param {object} metadata - Información adicional (tipo, leccion_id, etc.)
  */
-exports.otorgarPuntos = async (usuarioId, puntosXP, razon = '') => {
+exports.otorgarXP = async (usuarioId, cantidad, metadata = {}) => {
     try {
-        // Obtener XP actual
+        // 1. Actualizar XP total en perfil_estudiantes
+        const [resultado] = await pool.execute(
+            'UPDATE perfil_estudiantes SET total_xp = total_xp + ? WHERE usuario_id = ?',
+            [cantidad, usuarioId]
+        );
+
+        if (resultado.affectedRows === 0) {
+            throw new Error('Usuario no encontrado o no es estudiante');
+        }
+
+        // 2. Registrar en historial de XP (si existe la tabla)
+        try {
+            await pool.execute(`
+                INSERT INTO historial_xp (usuario_id, cantidad, tipo, metadata, creado_en)
+                VALUES (?, ?, ?, ?, NOW())
+            `, [
+                usuarioId, 
+                cantidad, 
+                metadata.tipo || 'general',
+                JSON.stringify(metadata)
+            ]);
+        } catch (err) {
+            // Si la tabla no existe, continuar (no es crítico)
+            console.warn('Tabla historial_xp no existe, saltando registro');
+        }
+
+        // 3. Verificar si cambió de nivel CEFR
         const [perfil] = await pool.execute(
-            'SELECT total_xp, nivel_xp FROM perfil_estudiantes WHERE usuario_id = ?',
+            'SELECT total_xp, nivel_actual FROM perfil_estudiantes WHERE usuario_id = ?',
             [usuarioId]
         );
-        
-        if (perfil.length === 0) {
-            throw new Error('Perfil de estudiante no encontrado');
+
+        if (perfil.length > 0) {
+            const nuevoNivel = calcularNivelPorXP(perfil[0].total_xp);
+            
+            // Si cambió de nivel, actualizar
+            if (nuevoNivel !== perfil[0].nivel_actual) {
+                await pool.execute(
+                    'UPDATE perfil_estudiantes SET nivel_actual = ? WHERE usuario_id = ?',
+                    [nuevoNivel, usuarioId]
+                );
+            }
         }
-        
-        const xpAnterior = perfil[0].total_xp;
-        const nivelAnterior = perfil[0].nivel_xp;
-        const xpNuevo = xpAnterior + puntosXP;
-        
-        // Calcular nuevo nivel
-        const { nivel: nuevoNivel } = calcularNivelPorXP(xpNuevo);
-        const subioNivel = nuevoNivel > nivelAnterior;
-        
-        // Actualizar perfil
-        await pool.execute(
-            `UPDATE perfil_estudiantes 
-             SET total_xp = ?, nivel_xp = ?
-             WHERE usuario_id = ?`,
-            [xpNuevo, nuevoNivel, usuarioId]
-        );
-        
-        console.log(`✅ ${puntosXP} XP otorgados a usuario ${usuarioId}. Razón: ${razon}`);
-        
+
         return {
-            xp_anterior: xpAnterior,
-            xp_nuevo: xpNuevo,
-            puntos_otorgados: puntosXP,
-            nivel_anterior: nivelAnterior,
-            nivel_nuevo: nuevoNivel,
-            subio_nivel: subioNivel,
-            razon
+            xp_otorgado: cantidad,
+            xp_total: perfil[0].total_xp + cantidad,
+            nivel_actual: calcularNivelPorXP(perfil[0].total_xp + cantidad)
         };
-        
+
     } catch (error) {
-        console.error('Error en GamificacionModel.otorgarPuntos:', error);
+        console.error('Error al otorgar XP:', error);
         throw error;
     }
 };
 
 /**
- * ✅ EJEMPLO COMPLETO - Actualizar racha diaria
+ * Verificar y desbloquear logros
+ * @param {number} usuarioId - ID del usuario
+ * @returns {array} Lista de logros desbloqueados
+ */
+exports.verificarLogros = async (usuarioId) => {
+    try {
+        const logrosNuevos = [];
+
+        // Obtener estadísticas del usuario
+        const [stats] = await pool.execute(`
+            SELECT 
+                COUNT(CASE WHEN completada = 1 THEN 1 END) as lecciones_completadas,
+                pe.total_xp,
+                pe.racha_dias
+            FROM progreso_lecciones pl
+            JOIN perfil_estudiantes pe ON pl.usuario_id = pe.usuario_id
+            WHERE pl.usuario_id = ?
+            GROUP BY pe.usuario_id, pe.total_xp, pe.racha_dias
+        `, [usuarioId]);
+
+        if (!stats.length) return logrosNuevos;
+
+        const { lecciones_completadas, total_xp, racha_dias } = stats[0];
+
+        // DEFINICIÓN DE LOGROS
+        const logros = [
+            {
+                id: 'primera_leccion',
+                condicion: lecciones_completadas >= 1,
+                titulo: 'Primera Lección',
+                descripcion: 'Completaste tu primera lección',
+                tipo: 'leccion'
+            },
+            {
+                id: 'aprendiz',
+                condicion: lecciones_completadas >= 10,
+                titulo: 'Aprendiz',
+                descripcion: 'Completaste 10 lecciones',
+                tipo: 'leccion'
+            },
+            {
+                id: 'estudioso',
+                condicion: lecciones_completadas >= 50,
+                titulo: 'Estudioso',
+                descripcion: 'Completaste 50 lecciones',
+                tipo: 'leccion'
+            },
+            {
+                id: 'maestro',
+                condicion: lecciones_completadas >= 100,
+                titulo: 'Maestro del Idioma',
+                descripcion: 'Completaste 100 lecciones',
+                tipo: 'leccion'
+            },
+            {
+                id: 'racha_7',
+                condicion: racha_dias >= 7,
+                titulo: 'Racha de 7 días',
+                descripcion: 'Mantuviste una racha de 7 días consecutivos',
+                tipo: 'racha'
+            },
+            {
+                id: 'racha_30',
+                condicion: racha_dias >= 30,
+                titulo: 'Racha de 30 días',
+                descripcion: 'Mantuviste una racha de 30 días consecutivos',
+                tipo: 'racha'
+            },
+            {
+                id: 'xp_1000',
+                condicion: total_xp >= 1000,
+                titulo: '1000 XP',
+                descripcion: 'Alcanzaste 1000 puntos de experiencia',
+                tipo: 'xp'
+            }
+        ];
+
+        // Verificar cada logro
+        for (const logro of logros) {
+            if (logro.condicion) {
+                // Verificar si ya tiene el logro
+                const [existe] = await pool.execute(
+                    'SELECT id FROM logros_usuario WHERE usuario_id = ? AND logro_id = ?',
+                    [usuarioId, logro.id]
+                );
+
+                // Si no lo tiene, desbloquearlo
+                if (!existe.length) {
+                    try {
+                        await pool.execute(`
+                            INSERT INTO logros_usuario (usuario_id, logro_id, titulo, descripcion, tipo, desbloqueado_en)
+                            VALUES (?, ?, ?, ?, ?, NOW())
+                        `, [usuarioId, logro.id, logro.titulo, logro.descripcion, logro.tipo]);
+
+                        logrosNuevos.push(logro);
+                    } catch (err) {
+                        // Si la tabla no existe, continuar
+                        console.warn('Tabla logros_usuario no existe, saltando logro');
+                    }
+                }
+            }
+        }
+
+        return logrosNuevos;
+
+    } catch (error) {
+        console.error('Error al verificar logros:', error);
+        throw error;
+    }
+};
+
+/**
+ * Actualizar racha de días consecutivos
+ * @param {number} usuarioId - ID del usuario
  */
 exports.actualizarRacha = async (usuarioId) => {
     try {
-        // Obtener racha actual
-        const [perfil] = await pool.execute(
-            'SELECT racha_dias, fecha_ultima_racha FROM perfil_estudiantes WHERE usuario_id = ?',
-            [usuarioId]
-        );
-        
-        if (perfil.length === 0) {
-            throw new Error('Perfil de estudiante no encontrado');
-        }
-        
-        const rachaActual = perfil[0].racha_dias;
-        const fechaUltimaRacha = perfil[0].fecha_ultima_racha;
+        // Obtener última actividad y racha actual
+        const [perfil] = await pool.execute(`
+            SELECT racha_dias, ultima_actividad
+            FROM perfil_estudiantes
+            WHERE usuario_id = ?
+        `, [usuarioId]);
+
+        if (!perfil.length) return;
+
+        const { racha_dias, ultima_actividad } = perfil[0];
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
-        
-        let nuevaRacha = rachaActual;
-        let rachaActualizada = false;
-        
-        if (!fechaUltimaRacha) {
-            // Primera vez
+
+        let nuevaRacha = racha_dias || 0;
+
+        if (!ultima_actividad) {
+            // Primera actividad
             nuevaRacha = 1;
-            rachaActualizada = true;
         } else {
-            const fechaUltima = new Date(fechaUltimaRacha);
-            fechaUltima.setHours(0, 0, 0, 0);
-            
-            const diferenciaDias = Math.floor((hoy - fechaUltima) / (1000 * 60 * 60 * 24));
-            
+            const ultimaActividad = new Date(ultima_actividad);
+            ultimaActividad.setHours(0, 0, 0, 0);
+
+            const diferenciaDias = Math.floor((hoy - ultimaActividad) / (1000 * 60 * 60 * 24));
+
             if (diferenciaDias === 0) {
-                // Ya estudió hoy, no hacer nada
-                rachaActualizada = false;
+                // Mismo día, no cambiar racha
+                return;
             } else if (diferenciaDias === 1) {
-                // Ayer estudió, incrementar racha
-                nuevaRacha = rachaActual + 1;
-                rachaActualizada = true;
+                // Día consecutivo, incrementar racha
+                nuevaRacha = racha_dias + 1;
             } else {
-                // Más de 1 día sin estudiar, resetear
+                // Rompió la racha, reiniciar
                 nuevaRacha = 1;
-                rachaActualizada = true;
             }
         }
-        
-        if (rachaActualizada) {
-            await pool.execute(
-                `UPDATE perfil_estudiantes 
-                 SET racha_dias = ?, fecha_ultima_racha = CURDATE()
-                 WHERE usuario_id = ?`,
-                [nuevaRacha, usuarioId]
-            );
-            
-            console.log(`✅ Racha actualizada para usuario ${usuarioId}: ${nuevaRacha} días`);
-        }
-        
+
+        // Actualizar racha y última actividad
+        await pool.execute(`
+            UPDATE perfil_estudiantes
+            SET racha_dias = ?, ultima_actividad = NOW()
+            WHERE usuario_id = ?
+        `, [nuevaRacha, usuarioId]);
+
         return {
-            racha_anterior: rachaActual,
+            racha_anterior: racha_dias,
             racha_nueva: nuevaRacha,
-            racha_actualizada: rachaActualizada
+            actualizada: nuevaRacha !== racha_dias
         };
-        
+
     } catch (error) {
-        console.error('Error en GamificacionModel.actualizarRacha:', error);
+        console.error('Error al actualizar racha:', error);
         throw error;
     }
 };
 
 /**
- * TODO PARA DEEPSEEK: Obtener información completa de XP y nivel del usuario
- * 
- * INSTRUCCIONES:
- * 1. SELECT de perfil_estudiantes (total_xp, nivel_xp)
- * 2. Usar calcularNivelPorXP() para obtener detalles del nivel
- * 3. Retornar: { total_xp, nivel, progreso_siguiente, xp_faltante, ... }
+ * Obtener información completa de gamificación del usuario
+ * @param {number} usuarioId - ID del usuario
  */
-exports.obtenerNivelUsuario = async (usuarioId) => {
+exports.obtenerPerfilGamificacion = async (usuarioId) => {
     try {
+        const [perfil] = await pool.execute(`
+            SELECT 
+                pe.total_xp,
+                pe.nivel_actual,
+                pe.racha_dias,
+                pe.ultima_actividad,
+                pe.lecciones_completadas,
+                pe.cursos_completados,
+                pu.nombre_completo,
+                pu.foto_perfil
+            FROM perfil_estudiantes pe
+            JOIN usuarios u ON pe.usuario_id = u.id
+            JOIN perfil_usuarios pu ON u.id = pu.usuario_id
+            WHERE pe.usuario_id = ?
+        `, [usuarioId]);
+
+        if (!perfil.length) {
+            return null;
+        }
+
+        const datos = perfil[0];
+        
+        // Calcular progreso hacia siguiente nivel
+        const nivelActual = datos.nivel_actual;
+        const niveles = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+        const indiceActual = niveles.indexOf(nivelActual);
+        const siguienteNivel = indiceActual < niveles.length - 1 ? niveles[indiceActual + 1] : null;
+
+        // XP requerido para siguiente nivel
+        const xpRequerido = {
+            'A1': 0, 'A2': 100, 'B1': 300, 
+            'B2': 600, 'C1': 1000, 'C2': 1500
+        };
+
+        const xpActual = datos.total_xp;
+        const xpNivelActual = xpRequerido[nivelActual];
+        const xpSiguienteNivel = siguienteNivel ? xpRequerido[siguienteNivel] : xpRequerido['C2'];
+        
+        const progresoSiguiente = siguienteNivel 
+            ? Math.min(100, Math.round(((xpActual - xpNivelActual) / (xpSiguienteNivel - xpNivelActual)) * 100))
+            : 100;
+
+        // Obtener logros del usuario
+        const logros = await this.obtenerLogrosUsuario(usuarioId);
+
+        // Obtener posición en ranking
+        const posicion = await this.obtenerPosicionUsuario(usuarioId);
+
+        return {
+            ...datos,
+            progreso_siguiente_nivel: progresoSiguiente,
+            xp_faltante_siguiente_nivel: siguienteNivel ? xpSiguienteNivel - xpActual : 0,
+            siguiente_nivel: siguienteNivel,
+            logros: logros,
+            ranking: posicion
+        };
+
+    } catch (error) {
+        console.error('Error al obtener perfil de gamificación:', error);
+        throw error;
+    }
+};
+
+/**
+ * Obtener logros del usuario (versión mejorada)
+ */
+exports.obtenerLogrosUsuario = async (usuarioId) => {
+    try {
+        // Intentar obtener de tabla logros_usuario
+        try {
+            const [logros] = await pool.execute(`
+                SELECT logro_id, titulo, descripcion, tipo, desbloqueado_en
+                FROM logros_usuario 
+                WHERE usuario_id = ?
+                ORDER BY desbloqueado_en DESC
+            `, [usuarioId]);
+
+            if (logros.length > 0) {
+                return logros;
+            }
+        } catch (err) {
+            // Tabla no existe, continuar con método alternativo
+            console.warn('Tabla logros_usuario no existe, usando logros mockeados');
+        }
+
+        // Método alternativo basado en estadísticas
         const [perfil] = await pool.execute(
-            'SELECT total_xp, nivel_xp FROM perfil_estudiantes WHERE usuario_id = ?',
+            `SELECT * FROM perfil_estudiantes WHERE usuario_id = ?`,
             [usuarioId]
         );
         
         if (perfil.length === 0) {
-            return null;
+            return [];
         }
         
-        const totalXP = perfil[0].total_xp;
-        const infoNivel = calcularNivelPorXP(totalXP);
+        const p = perfil[0];
+        const logros = [];
         
-        return {
-            total_xp: totalXP,
-            ...infoNivel
-        };
+        // Logros basados en estadísticas
+        if (p.lecciones_completadas >= 1) {
+            logros.push({
+                logro_id: 'primera_leccion',
+                titulo: 'Primera Lección',
+                descripcion: 'Completaste tu primera lección',
+                tipo: 'leccion',
+                desbloqueado_en: new Date()
+            });
+        }
+        
+        if (p.racha_dias >= 7) {
+            logros.push({
+                logro_id: 'racha_7',
+                titulo: 'Racha de 7 días',
+                descripcion: 'Estudiaste 7 días consecutivos',
+                tipo: 'racha',
+                desbloqueado_en: new Date()
+            });
+        }
+        
+        if (p.cursos_completados >= 1) {
+            logros.push({
+                logro_id: 'primer_curso',
+                titulo: 'Primer Curso',
+                descripcion: 'Completaste tu primer curso',
+                tipo: 'curso',
+                desbloqueado_en: new Date()
+            });
+        }
+        
+        if (p.total_xp >= 1000) {
+            logros.push({
+                logro_id: 'xp_1000',
+                titulo: '1000 XP',
+                descripcion: 'Alcanzaste 1000 puntos de experiencia',
+                tipo: 'xp',
+                desbloqueado_en: new Date()
+            });
+        }
+        
+        return logros;
         
     } catch (error) {
-        console.error('Error en GamificacionModel.obtenerNivelUsuario:', error);
-        throw error;
+        console.error('Error en GamificacionModel.obtenerLogrosUsuario:', error);
+        return [];
     }
 };
 
 /**
- * TODO PARA DEEPSEEK: Obtener ranking global (TOP usuarios por XP)
- * 
- * INSTRUCCIONES:
- * 1. SELECT de perfil_estudiantes JOIN usuarios JOIN perfil_usuarios
- * 2. Ordenar por total_xp DESC
- * 3. Incluir: posición (ROW_NUMBER), nombre, foto_perfil, total_xp, nivel_xp, 
- *    racha_dias, lecciones_completadas, cursos_completados
- * 4. LIMIT y OFFSET para paginación
- */
-exports.obtenerRankingGlobal = async (limite = 100, offset = 0) => {
-    try {
-        const query = `
-            SELECT 
-                (@row_number := @row_number + 1) AS posicion,
-                u.id as usuario_id,
-                pu.nombre_completo,
-                pu.foto_perfil,
-                pe.total_xp,
-                pe.nivel_xp,
-                pe.racha_dias,
-                pe.lecciones_completadas,
-                pe.cursos_completados,
-                pe.nivel_actual,
-                pe.idioma_aprendizaje
-            FROM perfil_estudiantes pe
-            JOIN usuarios u ON pe.usuario_id = u.id
-            JOIN perfil_usuarios pu ON u.id = pu.usuario_id
-            CROSS JOIN (SELECT @row_number := ?) AS init
-            WHERE u.estado_cuenta = 'activo'
-            ORDER BY pe.total_xp DESC
-            LIMIT ? OFFSET ?
-        `;
-        
-        const [rows] = await pool.execute(query, [offset, limite, offset]);
-        return rows;
-        
-    } catch (error) {
-        console.error('Error en GamificacionModel.obtenerRankingGlobal:', error);
-        throw error;
-    }
-};
-
-/**
- * TODO PARA DEEPSEEK: Obtener ranking semanal
- * 
- * INSTRUCCIONES:
- * 1. Necesitas calcular XP ganado esta semana
- * 2. Opción A: Crear tabla actividad_xp con campos (usuario_id, puntos_xp, fecha, razon)
- * 3. Opción B: Usar SUM de progreso_lecciones donde fecha >= inicio_semana
- * 4. Similar a ranking global pero filtrado por semana actual
- */
-exports.obtenerRankingSemanal = async (limite = 100) => {
-    try {
-        // Calcular inicio de semana (lunes)
-        const query = `
-            SELECT 
-                u.id as usuario_id,
-                pu.nombre_completo,
-                pu.foto_perfil,
-                COUNT(DISTINCT pl.leccion_id) as lecciones_esta_semana,
-                pe.total_xp,
-                pe.nivel_xp,
-                pe.racha_dias
-            FROM usuarios u
-            JOIN perfil_usuarios pu ON u.id = pu.usuario_id
-            JOIN perfil_estudiantes pe ON u.id = pe.usuario_id
-            LEFT JOIN progreso_lecciones pl ON u.id = pl.usuario_id 
-                AND pl.actualizado_en >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
-                AND pl.completada = TRUE
-            WHERE u.estado_cuenta = 'activo'
-            GROUP BY u.id
-            ORDER BY lecciones_esta_semana DESC, pe.total_xp DESC
-            LIMIT ?
-        `;
-        
-        const [rows] = await pool.execute(query, [limite]);
-        
-        // Agregar posición
-        return rows.map((row, index) => ({
-            posicion: index + 1,
-            ...row
-        }));
-        
-    } catch (error) {
-        console.error('Error en GamificacionModel.obtenerRankingSemanal:', error);
-        throw error;
-    }
-};
-
-/**
- * TODO PARA DEEPSEEK: Obtener ranking mensual
- * Similar a semanal pero con mes actual
- */
-exports.obtenerRankingMensual = async (limite = 100) => {
-    try {
-        const query = `
-            SELECT 
-                u.id as usuario_id,
-                pu.nombre_completo,
-                pu.foto_perfil,
-                COUNT(DISTINCT pl.leccion_id) as lecciones_este_mes,
-                pe.total_xp,
-                pe.nivel_xp,
-                pe.racha_dias
-            FROM usuarios u
-            JOIN perfil_usuarios pu ON u.id = pu.usuario_id
-            JOIN perfil_estudiantes pe ON u.id = pe.usuario_id
-            LEFT JOIN progreso_lecciones pl ON u.id = pl.usuario_id 
-                AND MONTH(pl.actualizado_en) = MONTH(CURDATE())
-                AND YEAR(pl.actualizado_en) = YEAR(CURDATE())
-                AND pl.completada = TRUE
-            WHERE u.estado_cuenta = 'activo'
-            GROUP BY u.id
-            ORDER BY lecciones_este_mes DESC, pe.total_xp DESC
-            LIMIT ?
-        `;
-        
-        const [rows] = await pool.execute(query, [limite]);
-        
-        return rows.map((row, index) => ({
-            posicion: index + 1,
-            ...row
-        }));
-        
-    } catch (error) {
-        console.error('Error en GamificacionModel.obtenerRankingMensual:', error);
-        throw error;
-    }
-};
-
-/**
- * TODO PARA DEEPSEEK: Obtener ranking por nivel CEFR
- * 
- * INSTRUCCIONES:
- * 1. Similar a ranking global
- * 2. Agregar WHERE pe.nivel_actual = ?
- * 3. Parámetro: nivel ('A1', 'A2', 'B1', 'B2', 'C1', 'C2')
- */
-exports.obtenerRankingPorNivel = async (nivel, limite = 100) => {
-    try {
-        const query = `
-            SELECT 
-                (@row_number := @row_number + 1) AS posicion,
-                u.id as usuario_id,
-                pu.nombre_completo,
-                pu.foto_perfil,
-                pe.total_xp,
-                pe.nivel_xp,
-                pe.racha_dias,
-                pe.lecciones_completadas,
-                pe.idioma_aprendizaje
-            FROM perfil_estudiantes pe
-            JOIN usuarios u ON pe.usuario_id = u.id
-            JOIN perfil_usuarios pu ON u.id = pu.usuario_id
-            CROSS JOIN (SELECT @row_number := 0) AS init
-            WHERE u.estado_cuenta = 'activo' AND pe.nivel_actual = ?
-            ORDER BY pe.total_xp DESC
-            LIMIT ?
-        `;
-        
-        const [rows] = await pool.execute(query, [nivel, limite]);
-        return rows;
-        
-    } catch (error) {
-        console.error('Error en GamificacionModel.obtenerRankingPorNivel:', error);
-        throw error;
-    }
-};
-
-/**
- * TODO PARA DEEPSEEK: Obtener posición del usuario en el ranking global
- * 
- * INSTRUCCIONES:
- * 1. Contar cuántos usuarios tienen más XP que el usuario actual
- * 2. Esa cantidad + 1 = posición del usuario
- * 3. También obtener total de usuarios activos
+ * Obtener posición del usuario en el ranking global
  */
 exports.obtenerPosicionUsuario = async (usuarioId) => {
     try {
@@ -429,77 +462,13 @@ exports.obtenerPosicionUsuario = async (usuarioId) => {
         };
         
     } catch (error) {
-        console.error('Error en GamificacionModel.obtenerPosicionUsuario:', error);
-        throw error;
+        console.error('Error al obtener posición usuario:', error);
+        return null;
     }
 };
 
-/**
- * TODO PARA DEEPSEEK: Obtener logros del usuario
- * NOTA: Esto requiere crear una tabla 'logros' y 'usuario_logros'
- * Por ahora, puedes devolver logros mockeados basados en estadísticas
- */
-exports.obtenerLogrosUsuario = async (usuarioId) => {
-    try {
-        const [perfil] = await pool.execute(
-            `SELECT * FROM perfil_estudiantes WHERE usuario_id = ?`,
-            [usuarioId]
-        );
-        
-        if (perfil.length === 0) {
-            return [];
-        }
-        
-        const p = perfil[0];
-        const logros = [];
-        
-        // Logros basados en estadísticas
-        if (p.lecciones_completadas >= 1) {
-            logros.push({
-                id: 'primera_leccion',
-                nombre: 'Primera Lección',
-                descripcion: 'Completaste tu primera lección',
-                icono: '🎯',
-                desbloqueado: true
-            });
-        }
-        
-        if (p.racha_dias >= 7) {
-            logros.push({
-                id: 'racha_7',
-                nombre: 'Racha de 7 días',
-                descripcion: 'Estudiaste 7 días consecutivos',
-                icono: '🔥',
-                desbloqueado: true
-            });
-        }
-        
-        if (p.cursos_completados >= 1) {
-            logros.push({
-                id: 'primer_curso',
-                nombre: 'Primer Curso',
-                descripcion: 'Completaste tu primer curso',
-                icono: '🏆',
-                desbloqueado: true
-            });
-        }
-        
-        if (p.nivel_xp >= 5) {
-            logros.push({
-                id: 'nivel_5',
-                nombre: 'Nivel 5',
-                descripcion: 'Alcanzaste el nivel 5',
-                icono: '⭐',
-                desbloqueado: true
-            });
-        }
-        
-        return logros;
-        
-    } catch (error) {
-        console.error('Error en GamificacionModel.obtenerLogrosUsuario:', error);
-        throw error;
-    }
-};
+// Mantener funciones existentes para compatibilidad
+exports.otorgarPuntos = exports.otorgarXP;
+exports.obtenerNivelUsuario = exports.obtenerPerfilGamificacion;
 
 module.exports = exports;

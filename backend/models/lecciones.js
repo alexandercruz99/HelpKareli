@@ -279,3 +279,24 @@ exports.registrarProgreso = async (usuarioId, leccionId, progreso) => {
         throw error;
     }
 };
+
+/**
+ * Obtener progreso de un usuario en una lección específica
+ * 🔥 NUEVO MÉTODO: Para verificar si ya estaba completada antes
+ */
+exports.obtenerProgreso = async (usuarioId, leccionId) => {
+    try {
+        const query = `
+            SELECT progreso, completada 
+            FROM progreso_lecciones 
+            WHERE usuario_id = ? AND leccion_id = ?
+        `;
+
+        const [filas] = await pool.execute(query, [usuarioId, leccionId]);
+        
+        return filas.length > 0 ? filas[0] : null;
+    } catch (error) {
+        console.error('Error en Leccion.obtenerProgreso:', error);
+        throw error;
+    }
+};

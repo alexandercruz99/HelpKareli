@@ -1,5 +1,6 @@
 const ProgresoModel = require('../models/progresoModel');
 const GamificacionModel = require('../models/gamificacionModel');
+const db = require('../config/database');
 
 /**
  * CONTROLADOR: Progreso de Lecciones y Cursos
@@ -308,6 +309,181 @@ exports.actualizarProgresoCurso = async (req, res) => {
             error: 'Error al actualizar progreso del curso',
             detalles: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
+    }
+};
+
+/**
+ * ============================================
+ * NUEVAS FUNCIONES PARA DASHBOARD ESTUDIANTE
+ * ============================================
+ */
+
+/**
+ * Obtener resumen completo del progreso del estudiante
+ */
+exports.obtenerResumenEstudiante = async (req, res) => {
+    try {
+        const usuarioId = req.user.id;
+
+        // 1. Información del perfil del estudiante
+        const [perfil] = await db.pool.execute(`
+            SELECT 
+                pe.nivel_actual,
+                pe.idioma_aprendizaje,
+                pe.total_xp,
+                pe.ultima_actividad,
+                u.nombre,
+                u.primer_apellido
+            FROM perfil_estudiantes pe
+            JOIN usuarios u ON pe.usuario_id = u.id
+            WHERE pe.usuario_id = ?
+        `, [usuarioId]);
+
+        if (!perfil.length) {
+            return res.status(404).json({ mensaje: 'Perfil de estudiante no encontrado' });
+        }
+
+        // 2. Estadísticas de progreso
+        const [estadisticas] = await db.pool.execute(`
+            SELECT 
+                COUNT(DISTINCT leccion_id) as lecciones_iniciadas,
+                SUM(CASE WHEN completada = 1 THEN 1 ELSE 0 END) as lecciones_completadas,
+                SUM(tiempo_total_segundos) as tiempo_total_segundos,
+                AVG(progreso) as promedio_progreso
+            FROM progreso_lecciones
+            WHERE usuario_id = ?
+        `, [usuarioId]);
+
+        // 3. Lecciones en progreso (no completadas)
+        const [leccionesProgreso] = await db.pool.execute(`
+            SELECT 
+                l.id,
+                l.titulo,
+                l.nivel,
+                l.idioma,
+                l.duracion_minutos,
+                pl.progreso,
+                pl.actualizado_en
+            FROM progreso_lecciones pl
+            JOIN lecciones l ON pl.leccion_id = l.id
+            WHERE pl.usuario_id = ? 
+              AND pl.completada = 0
+              AND pl.progreso > 0
+            ORDER BY pl.actualizado_en DESC
+            LIMIT 5
+        `, [usuarioId]);
+
+        // 4. Últimas lecciones completadas
+        const [leccionesCompletadas] = await db.pool.execute(`
+            SELECT 
+                l.id,
+                l.titulo,
+                l.nivel,
+                l.idioma,
+                pl.actualizado_en as fecha_completada
+            FROM progreso_lecciones pl
+            JOIN lecciones l ON pl.leccion_id = l.id
+            WHERE pl.usuario_id = ? 
+              AND pl.completada = 1
+            ORDER BY pl.actualizado_en DESC
+            LIMIT 5
+        `, [usuarioId]);
+
+        // 5. Logros recientes
+        const [logros] = await db.pool.execute(`
+            SELECT 
+                logro_id,
+                titulo,
+                descripcion,
+                desbloqueado_en
+            FROM logros_usuario
+            WHERE usuario_id = ?
+            ORDER BY desbloqueado_en DESC
+            LIMIT 3
+        `, [usuarioId]);
+
+        // 6. Historial de XP (últimos 7 días)
+        const [historialXP] = await db.pool.execute(`
+            SELECT 
+                DATE(creado_en) as fecha,
+                SUM(cantidad) as xp_ganado
+            FROM historial_xp
+            WHERE usuario_id = ?
+              AND creado_en >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            GROUP BY DATE(creado_en)
+            ORDER BY fecha DESC
+        `, [usuarioId]);
+
+        // Construir respuesta
+        res.json({
+            perfil: perfil[0],
+            estadisticas: {
+                lecciones_iniciadas: estadisticas[0].lecciones_iniciadas || 0,
+                lecciones_completadas: estadisticas[0].lecciones_completadas || 0,
+                tiempo_total_minutos: Math.floor((estadisticas[0].tiempo_total_segundos || 0) / 60),
+                promedio_progreso: Math.round(estadisticas[0].promedio_progreso || 0)
+            },
+            lecciones_en_progreso: leccionesProgreso,
+            lecciones_completadas: leccionesCompletadas,
+            logros_recientes: logros,
+            historial_xp: historialXP
+        });
+
+    } catch (error) {
+        console.error('Error al obtener resumen del estudiante:', error);
+        res.status(500).json({ mensaje: 'Error del servidor' });
+    }
+};
+
+/**
+ * Obtener lecciones recomendadas para el estudiante
+ */
+exports.obtenerLeccionesRecomendadas = async (req, res) => {
+    try {
+        const usuarioId = req.user.id;
+
+        // Obtener nivel e idioma del estudiante
+        const [perfil] = await db.pool.execute(`
+            SELECT nivel_actual, idioma_aprendizaje
+            FROM perfil_estudiantes
+            WHERE usuario_id = ?
+        `, [usuarioId]);
+
+        if (!perfil.length) {
+            return res.status(404).json({ mensaje: 'Perfil no encontrado' });
+        }
+
+        const { nivel_actual, idioma_aprendizaje } = perfil[0];
+
+        // Obtener lecciones del nivel actual que NO ha completado
+        const [lecciones] = await db.pool.execute(`
+            SELECT 
+                l.id,
+                l.titulo,
+                l.descripcion,
+                l.nivel,
+                l.idioma,
+                l.duracion_minutos,
+                COALESCE(pl.progreso, 0) as progreso_actual
+            FROM lecciones l
+            LEFT JOIN progreso_lecciones pl ON l.id = pl.leccion_id AND pl.usuario_id = ?
+            WHERE l.nivel = ?
+              AND l.idioma = ?
+              AND l.estado = 'activa'
+              AND (pl.completada IS NULL OR pl.completada = 0)
+            ORDER BY l.orden ASC, l.creado_en ASC
+            LIMIT 10
+        `, [usuarioId, nivel_actual, idioma_aprendizaje]);
+
+        res.json({
+            nivel: nivel_actual,
+            idioma: idioma_aprendizaje,
+            lecciones_recomendadas: lecciones
+        });
+
+    } catch (error) {
+        console.error('Error al obtener lecciones recomendadas:', error);
+        res.status(500).json({ mensaje: 'Error del servidor' });
     }
 };
 

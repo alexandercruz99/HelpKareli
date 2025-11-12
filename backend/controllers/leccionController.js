@@ -1,6 +1,8 @@
 // backend/controllers/leccionController.js
 const Leccion = require('../models/lecciones');
 const Multimedia = require('../models/multimedia');
+const Gamificacion = require('../models/gamificacionModel');
+const Estadisticas = require('../models/estadisticasModel');
 
 // @desc    Crear nueva lección
 // @route   POST /api/lecciones
@@ -253,6 +255,7 @@ exports.registrarProgreso = async (req, res) => {
         const { progreso } = req.body;
         const usuarioId = req.user.id;
 
+        // PASO 1: Validar progreso
         if (progreso < 0 || progreso > 100) {
             return res.status(400).json({
                 success: false,
@@ -260,22 +263,79 @@ exports.registrarProgreso = async (req, res) => {
             });
         }
 
-        // Verificar que la lección existe
-        const leccionExistente = await Leccion.obtenerPorId(leccionId);
-        if (!leccionExistente) {
+        // PASO 2: Obtener información de la lección
+        const leccion = await Leccion.obtenerPorId(leccionId);
+        if (!leccion) {
             return res.status(404).json({
                 success: false,
                 error: 'Lección no encontrada'
             });
         }
 
+        // PASO 3: Verificar progreso anterior usando el modelo Leccion
+        // Necesitamos agregar un método obtenerProgreso en el modelo lecciones.js
+        const progresoAnterior = await Leccion.obtenerProgreso(usuarioId, leccionId);
+        
+        const esPrimeraVez = !progresoAnterior;
+        const yaCompletada = progresoAnterior ? progresoAnterior.completada : false;
+
+        // PASO 4: Registrar progreso en BD
         await Leccion.registrarProgreso(usuarioId, leccionId, progreso);
 
+        // PASO 5: Si completó (100%) y NO estaba completada antes, otorgar XP
+        if (progreso >= 100 && !yaCompletada) {
+            // Calcular XP base según nivel
+            const xpPorNivel = {
+                'A1': 10, 'A2': 15, 'B1': 25,
+                'B2': 35, 'C1': 45, 'C2': 50
+            };
+            const xpBase = xpPorNivel[leccion.nivel] || 10;
+
+            // Bonus por duración (2 XP cada 10 minutos)
+            const xpDuracion = Math.floor(leccion.duracion_minutos / 10) * 2;
+
+            // Bonus primera vez (x2)
+            const multiplicador = esPrimeraVez ? 2 : 1;
+            
+            const xpTotal = (xpBase + xpDuracion) * multiplicador;
+
+            // Otorgar XP usando modelo de gamificación
+            await Gamificacion.otorgarXP(usuarioId, xpTotal, {
+                tipo: 'leccion_completada',
+                leccion_id: leccionId,
+                nivel: leccion.nivel,
+                primera_vez: esPrimeraVez
+            });
+
+            // Actualizar estadísticas
+            await Estadisticas.actualizarDesdeProgreso(usuarioId);
+
+            // Verificar y desbloquear logros
+            const logrosNuevos = await Gamificacion.verificarLogros(usuarioId);
+
+            // Actualizar racha si aplica
+            await Gamificacion.actualizarRacha(usuarioId);
+
+            return res.json({
+                success: true,
+                mensaje: '¡Lección completada! 🎉',
+                data: {
+                    progreso: 100,
+                    completada: true,
+                    xp_ganado: xpTotal,
+                    es_primera_vez: esPrimeraVez,
+                    logros_desbloqueados: logrosNuevos,
+                    nueva_racha: logrosNuevos.some(l => l.tipo === 'racha')
+                }
+            });
+        }
+
+        // Si solo actualizó progreso (no completó) o ya estaba completada
         res.json({
             success: true,
-            mensaje: 'Progreso registrado exitosamente',
+            mensaje: 'Progreso actualizado',
             data: {
-                progreso,
+                progreso: progreso,
                 completada: progreso === 100
             }
         });

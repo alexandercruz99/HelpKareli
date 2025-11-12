@@ -1,7 +1,8 @@
 const GamificacionModel = require('../models/gamificacionModel');
+const db = require('../config/database');
 
 /**
- * CONTROLADOR: Gamificación (XP, Niveles, Rankings, Logros)
+ * CONTROLADOR: Gamificación (XP, Niveles, Rankings, Logros, Leaderboard)
  * RF-11: Otorgar recompensas
  * RF-12: Generar tablas de clasificación
  */
@@ -336,7 +337,7 @@ exports.obtenerMiPosicion = async (req, res) => {
 };
 
 /**
- * ✅ NUEVO: Otorgar puntos XP manualmente (para testing)
+ * ✅ COMPLETADO: Otorgar puntos XP manualmente (para testing)
  * @route   POST /api/gamificacion/otorgar-puntos
  * @access  Private (admin/profesor)
  */
@@ -371,6 +372,379 @@ exports.otorgarPuntos = async (req, res) => {
         console.error('Error en otorgarPuntos:', error);
         res.status(500).json({ 
             error: 'Error al otorgar puntos',
+            detalles: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+/**
+ * 🆕 LEADERBOARD: Obtener leaderboard global (todos los estudiantes)
+ * @route   GET /api/gamificacion/leaderboard/global
+ * @access  Private
+ */
+exports.obtenerLeaderboardGlobal = async (req, res) => {
+    try {
+        const { limite = 50, pagina = 1 } = req.query;
+        const offset = (pagina - 1) * limite;
+
+        // Obtener ranking por XP
+        const [ranking] = await db.pool.execute(`
+            SELECT 
+                u.id,
+                u.nombre,
+                u.primer_apellido,
+                pe.nivel_actual,
+                pe.idioma_aprendizaje,
+                pe.total_xp,
+                COUNT(DISTINCT pl.leccion_id) as lecciones_completadas,
+                @rank := @rank + 1 as posicion
+            FROM usuarios u
+            JOIN perfil_estudiantes pe ON u.id = pe.usuario_id
+            LEFT JOIN progreso_lecciones pl ON u.id = pl.usuario_id AND pl.completada = 1
+            CROSS JOIN (SELECT @rank := 0) r
+            WHERE u.rol = 'alumno' AND u.estado_cuenta = 'activo'
+            GROUP BY u.id
+            ORDER BY pe.total_xp DESC, lecciones_completadas DESC
+            LIMIT ? OFFSET ?
+        `, [parseInt(limite), parseInt(offset)]);
+
+        // Obtener total de participantes
+        const [total] = await db.pool.execute(`
+            SELECT COUNT(*) as total
+            FROM usuarios
+            WHERE rol = 'alumno' AND estado_cuenta = 'activo'
+        `);
+
+        // Si el usuario está autenticado, obtener su posición
+        let miPosicion = null;
+        if (req.user && req.user.rol === 'alumno') {
+            const [posicion] = await db.pool.execute(`
+                SELECT posicion FROM (
+                    SELECT 
+                        u.id,
+                        pe.total_xp,
+                        @rank := @rank + 1 as posicion
+                    FROM usuarios u
+                    JOIN perfil_estudiantes pe ON u.id = pe.usuario_id
+                    CROSS JOIN (SELECT @rank := 0) r
+                    WHERE u.rol = 'alumno' AND u.estado_cuenta = 'activo'
+                    ORDER BY pe.total_xp DESC
+                ) AS ranking
+                WHERE id = ?
+            `, [req.user.id]);
+
+            if (posicion.length > 0) {
+                miPosicion = posicion[0].posicion;
+            }
+        }
+
+        res.json({
+            ranking,
+            mi_posicion: miPosicion,
+            total_participantes: total[0].total,
+            paginacion: {
+                pagina: parseInt(pagina),
+                limite: parseInt(limite),
+                total_paginas: Math.ceil(total[0].total / limite)
+            }
+        });
+
+    } catch (error) {
+        console.error('Error al obtener leaderboard global:', error);
+        res.status(500).json({ 
+            error: 'Error del servidor',
+            detalles: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+/**
+ * 🆕 LEADERBOARD: Obtener leaderboard por nivel
+ * @route   GET /api/gamificacion/leaderboard/nivel/:nivel
+ * @access  Private
+ */
+exports.obtenerLeaderboardPorNivel = async (req, res) => {
+    try {
+        const { nivel } = req.params;
+        const { limite = 50 } = req.query;
+
+        // Validar nivel
+        const nivelesValidos = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+        if (!nivelesValidos.includes(nivel)) {
+            return res.status(400).json({ error: 'Nivel inválido' });
+        }
+
+        const [ranking] = await db.pool.execute(`
+            SELECT 
+                u.id,
+                u.nombre,
+                u.primer_apellido,
+                pe.nivel_actual,
+                pe.idioma_aprendizaje,
+                pe.total_xp,
+                COUNT(DISTINCT pl.leccion_id) as lecciones_completadas,
+                @rank := @rank + 1 as posicion
+            FROM usuarios u
+            JOIN perfil_estudiantes pe ON u.id = pe.usuario_id
+            LEFT JOIN progreso_lecciones pl ON u.id = pl.usuario_id AND pl.completada = 1
+            CROSS JOIN (SELECT @rank := 0) r
+            WHERE u.rol = 'alumno' 
+              AND u.estado_cuenta = 'activo'
+              AND pe.nivel_actual = ?
+            GROUP BY u.id
+            ORDER BY pe.total_xp DESC, lecciones_completadas DESC
+            LIMIT ?
+        `, [nivel, parseInt(limite)]);
+
+        res.json({
+            nivel,
+            ranking,
+            total_participantes: ranking.length
+        });
+
+    } catch (error) {
+        console.error('Error al obtener leaderboard por nivel:', error);
+        res.status(500).json({ 
+            error: 'Error del servidor',
+            detalles: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+/**
+ * 🆕 LEADERBOARD: Obtener leaderboard por idioma
+ * @route   GET /api/gamificacion/leaderboard/idioma/:idioma
+ * @access  Private
+ */
+exports.obtenerLeaderboardPorIdioma = async (req, res) => {
+    try {
+        const { idioma } = req.params;
+        const { limite = 50 } = req.query;
+
+        const [ranking] = await db.pool.execute(`
+            SELECT 
+                u.id,
+                u.nombre,
+                u.primer_apellido,
+                pe.nivel_actual,
+                pe.idioma_aprendizaje,
+                pe.total_xp,
+                COUNT(DISTINCT pl.leccion_id) as lecciones_completadas,
+                @rank := @rank + 1 as posicion
+            FROM usuarios u
+            JOIN perfil_estudiantes pe ON u.id = pe.usuario_id
+            LEFT JOIN progreso_lecciones pl ON u.id = pl.usuario_id AND pl.completada = 1
+            CROSS JOIN (SELECT @rank := 0) r
+            WHERE u.rol = 'alumno' 
+              AND u.estado_cuenta = 'activo'
+              AND pe.idioma_aprendizaje = ?
+            GROUP BY u.id
+            ORDER BY pe.total_xp DESC, lecciones_completadas DESC
+            LIMIT ?
+        `, [idioma, parseInt(limite)]);
+
+        res.json({
+            idioma,
+            ranking,
+            total_participantes: ranking.length
+        });
+
+    } catch (error) {
+        console.error('Error al obtener leaderboard por idioma:', error);
+        res.status(500).json({ 
+            error: 'Error del servidor',
+            detalles: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+/**
+ * 🆕 LEADERBOARD: Obtener top 10 estudiantes (para widgets)
+ * @route   GET /api/gamificacion/leaderboard/top10
+ * @access  Private
+ */
+exports.obtenerTop10 = async (req, res) => {
+    try {
+        const [top10] = await db.pool.execute(`
+            SELECT 
+                u.id,
+                u.nombre,
+                u.primer_apellido,
+                pe.nivel_actual,
+                pe.idioma_aprendizaje,
+                pe.total_xp,
+                COUNT(DISTINCT pl.leccion_id) as lecciones_completadas,
+                @rank := @rank + 1 as posicion
+            FROM usuarios u
+            JOIN perfil_estudiantes pe ON u.id = pe.usuario_id
+            LEFT JOIN progreso_lecciones pl ON u.id = pl.usuario_id AND pl.completada = 1
+            CROSS JOIN (SELECT @rank := 0) r
+            WHERE u.rol = 'alumno' AND u.estado_cuenta = 'activo'
+            GROUP BY u.id
+            ORDER BY pe.total_xp DESC, lecciones_completadas DESC
+            LIMIT 10
+        `);
+
+        res.json({ top10 });
+
+    } catch (error) {
+        console.error('Error al obtener top 10:', error);
+        res.status(500).json({ 
+            error: 'Error del servidor',
+            detalles: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+/**
+ * 🆕 LEADERBOARD: Obtener estadísticas de leaderboard (resumen)
+ * @route   GET /api/gamificacion/leaderboard/estadisticas
+ * @access  Private
+ */
+exports.obtenerEstadisticasLeaderboard = async (req, res) => {
+    try {
+        // XP promedio por nivel
+        const [xpPorNivel] = await db.pool.execute(`
+            SELECT 
+                nivel_actual,
+                AVG(total_xp) as xp_promedio,
+                MAX(total_xp) as xp_maximo,
+                COUNT(*) as estudiantes
+            FROM perfil_estudiantes
+            GROUP BY nivel_actual
+            ORDER BY FIELD(nivel_actual, 'A1', 'A2', 'B1', 'B2', 'C1', 'C2')
+        `);
+
+        // XP promedio por idioma
+        const [xpPorIdioma] = await db.pool.execute(`
+            SELECT 
+                idioma_aprendizaje,
+                AVG(total_xp) as xp_promedio,
+                MAX(total_xp) as xp_maximo,
+                COUNT(*) as estudiantes
+            FROM perfil_estudiantes
+            GROUP BY idioma_aprendizaje
+            ORDER BY xp_promedio DESC
+        `);
+
+        // Distribución de XP (rangos)
+        const [distribucion] = await db.pool.execute(`
+            SELECT 
+                CASE 
+                    WHEN total_xp < 100 THEN '0-100'
+                    WHEN total_xp < 300 THEN '100-300'
+                    WHEN total_xp < 600 THEN '300-600'
+                    WHEN total_xp < 1000 THEN '600-1000'
+                    WHEN total_xp < 1500 THEN '1000-1500'
+                    ELSE '1500+'
+                END as rango_xp,
+                COUNT(*) as estudiantes
+            FROM perfil_estudiantes
+            GROUP BY rango_xp
+            ORDER BY MIN(total_xp)
+        `);
+
+        res.json({
+            xp_por_nivel: xpPorNivel.map(n => ({
+                ...n,
+                xp_promedio: Math.round(n.xp_promedio)
+            })),
+            xp_por_idioma: xpPorIdioma.map(i => ({
+                ...i,
+                xp_promedio: Math.round(i.xp_promedio)
+            })),
+            distribucion_xp: distribucion
+        });
+
+    } catch (error) {
+        console.error('Error al obtener estadísticas de leaderboard:', error);
+        res.status(500).json({ 
+            error: 'Error del servidor',
+            detalles: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+/**
+ * 🆕 GAMIFICACIÓN: Obtener progreso semanal del usuario
+ * @route   GET /api/gamificacion/progreso-semanal
+ * @access  Private
+ */
+exports.obtenerProgresoSemanal = async (req, res) => {
+    try {
+        const usuarioId = req.user.id;
+        
+        const [progreso] = await db.pool.execute(`
+            SELECT 
+                DAYNAME(fecha_completado) as dia,
+                COUNT(*) as lecciones_completadas,
+                SUM(xp_ganados) as xp_ganado
+            FROM progreso_lecciones 
+            WHERE usuario_id = ? 
+                AND fecha_completado >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                AND completada = 1
+            GROUP BY DAYNAME(fecha_completado), DATE(fecha_completado)
+            ORDER BY DATE(fecha_completado)
+        `, [usuarioId]);
+
+        res.json({ progreso_semanal: progreso });
+
+    } catch (error) {
+        console.error('Error al obtener progreso semanal:', error);
+        res.status(500).json({ 
+            error: 'Error del servidor',
+            detalles: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+/**
+ * 🆕 GAMIFICACIÓN: Obtener insignias del usuario
+ * @route   GET /api/gamificacion/insignias
+ * @access  Private
+ */
+exports.obtenerInsigniasUsuario = async (req, res) => {
+    try {
+        const usuarioId = req.user.id;
+        
+        // Por ahora, simular insignias hasta implementar la tabla
+        const insigniasSimuladas = [
+            {
+                id: 1,
+                nombre: "Primeros Pasos",
+                descripcion: "Completa tu primera lección",
+                icono: "🎯",
+                desbloqueada: true,
+                fecha_desbloqueo: new Date().toISOString()
+            },
+            {
+                id: 2,
+                nombre: "Racha de 7 días",
+                descripcion: "Practica durante 7 días consecutivos",
+                icono: "🔥",
+                desbloqueada: false,
+                fecha_desbloqueo: null
+            },
+            {
+                id: 3,
+                nombre: "Maestro del Vocabulario",
+                descripcion: "Aprende 100 palabras nuevas",
+                icono: "📚",
+                desbloqueada: true,
+                fecha_desbloqueo: new Date().toISOString()
+            }
+        ];
+
+        res.json({
+            insignias: insigniasSimuladas,
+            total: insigniasSimuladas.length,
+            desbloqueadas: insigniasSimuladas.filter(i => i.desbloqueada).length
+        });
+
+    } catch (error) {
+        console.error('Error al obtener insignias:', error);
+        res.status(500).json({ 
+            error: 'Error del servidor',
             detalles: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
