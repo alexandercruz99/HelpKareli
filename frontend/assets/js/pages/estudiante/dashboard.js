@@ -1,6 +1,6 @@
 /* ============================================
-   SPEAKLEXI - Dashboard Estudiante
-   Conectado a API real - SIN MOCK DATA
+   SPEAKLEXI - Dashboard Estudiante CORREGIDO
+   Maneja usuarios nuevos y existentes
    ============================================ */
 
 (async () => {
@@ -51,60 +51,96 @@
         };
 
         // ===================================
-        // CARGAR RESUMEN DEL ESTUDIANTE
+        // CARGAR RESUMEN DEL ESTUDIANTE - CORREGIDO
         // ===================================
         async function cargarResumen() {
             try {
                 console.log('🔄 Cargando resumen del estudiante...');
                 
-                const response = await client.get('/progreso/resumen');
+                // ✅ apiClient.get() YA DEVUELVE EL OBJETO PARSEADO
+                const resultado = await client.get('/progreso/resumen');
                 
-                if (!response.ok) {
-                    throw new Error(`Error HTTP: ${response.status}`);
+                console.log('🔍 DEBUG Resultado completo:', resultado);
+
+                // Verificar si la petición fue exitosa
+                if (!resultado.success) {
+                    console.warn('⚠️ Petición no exitosa:', resultado.error);
+                    
+                    // Si es 404, es usuario nuevo
+                    if (resultado.status === 404) {
+                        mostrarEstadoInicial();
+                        return;
+                    }
+                    
+                    throw new Error(resultado.error || `Error HTTP: ${resultado.status}`);
                 }
 
-                const data = await response.json();
+                // ✅ Los datos están en resultado.data
+                const data = resultado.data;
                 console.log('📊 Datos del dashboard cargados:', data);
 
+                // Verificar estructura de datos
+                if (!data || typeof data !== 'object') {
+                    throw new Error('Respuesta inválida del servidor');
+                }
+
                 // Verificar si hay datos reales
-                if (!data || Object.keys(data).length === 0) {
-                    throw new Error('No hay datos disponibles en la respuesta');
+                const datosReales = data.data || data;
+                
+                if (!datosReales || Object.keys(datosReales).length === 0) {
+                    console.warn('⚠️ No hay datos disponibles, mostrando estado inicial');
+                    mostrarEstadoInicial();
+                    return;
                 }
 
                 // Actualizar stats superiores
-                actualizarStatsSuperiores(data);
+                actualizarStatsSuperiores(datosReales);
 
                 // Renderizar contenido dinámico
-                renderizarContenidoDinamico(data);
+                renderizarContenidoDinamico(datosReales);
 
                 // Cargar lecciones recomendadas
                 await cargarLeccionesRecomendadas();
 
             } catch (error) {
                 console.error('❌ Error al cargar resumen:', error);
-                mostrarEstadoSinDatos('No se pudieron cargar los datos del dashboard. Verifica tu conexión o intenta más tarde.');
+                console.error('🔍 Stack trace:', error.stack);
+                
+                // Si el error es 404 o no hay datos, mostrar estado inicial
+                if (error.message.includes('404') || error.message.includes('No hay datos')) {
+                    mostrarEstadoInicial();
+                } else {
+                    mostrarEstadoSinDatos('No se pudo conectar con el servidor. Intenta más tarde.');
+                }
             }
         }
 
         // ===================================
-        // CARGAR LECCIONES RECOMENDADAS
+        // CARGAR LECCIONES RECOMENDADAS - CORREGIDO
         // ===================================
         async function cargarLeccionesRecomendadas() {
             try {
                 console.log('🔄 Cargando lecciones recomendadas...');
                 
-                const response = await client.get('/progreso/lecciones-recomendadas');
+                // ✅ apiClient.get() YA DEVUELVE EL OBJETO PARSEADO
+                const resultado = await client.get('/progreso/lecciones-recomendadas');
                 
-                if (!response.ok) {
-                    throw new Error(`Error HTTP: ${response.status}`);
+                console.log('📚 Resultado lecciones recomendadas:', resultado);
+
+                // Si la petición no fue exitosa, salir silenciosamente
+                if (!resultado.success) {
+                    console.warn('⚠️ No se pudieron cargar lecciones recomendadas:', resultado.error);
+                    return;
                 }
 
-                const data = await response.json();
-                console.log('📚 Lecciones recomendadas cargadas:', data);
-
-                // Verificar si hay lecciones recomendadas
-                if (data.lecciones_recomendadas && data.lecciones_recomendadas.length > 0) {
-                    renderizarLeccionesRecomendadas(data.lecciones_recomendadas);
+                // ✅ Los datos están en resultado.data
+                const data = resultado.data;
+                
+                // Manejar diferentes estructuras de respuesta
+                const leccionesRecomendadas = data.lecciones_recomendadas || data.data || data || [];
+                
+                if (Array.isArray(leccionesRecomendadas) && leccionesRecomendadas.length > 0) {
+                    renderizarLeccionesRecomendadas(leccionesRecomendadas);
                 } else {
                     console.log('ℹ️ No hay lecciones recomendadas disponibles');
                 }
@@ -116,40 +152,164 @@
         }
 
         // ===================================
-        // ACTUALIZAR STATS SUPERIORES
+        // MOSTRAR ESTADO INICIAL (USUARIO NUEVO)
+        // ===================================
+        function mostrarEstadoInicial() {
+            console.log('🆕 Mostrando estado inicial para usuario nuevo');
+            
+            // Resetear stats a valores iniciales
+            if (elementos.diasRachaStat) elementos.diasRachaStat.textContent = '0';
+            if (elementos.totalXPStat) elementos.totalXPStat.textContent = '0';
+            if (elementos.leccionesCompletadasStat) elementos.leccionesCompletadasStat.textContent = '0';
+            if (elementos.nivelUsuarioStat) elementos.nivelUsuarioStat.textContent = 'A1';
+            if (elementos.idiomaAprendizajeStat) elementos.idiomaAprendizajeStat.textContent = 'Inglés';
+            
+            // Actualizar greeting con nombre genérico
+            if (elementos.greeting) {
+                const hora = new Date().getHours();
+                let saludo = 'Buenos días';
+                if (hora >= 12 && hora < 19) saludo = 'Buenas tardes';
+                if (hora >= 19) saludo = 'Buenas noches';
+                elementos.greeting.textContent = `${saludo}!`;
+            }
+            
+            // Renderizar dashboard para usuario nuevo
+            if (elementos.contenidoDashboard) {
+                elementos.contenidoDashboard.innerHTML = `
+                    <div class="space-y-8">
+                        <!-- Mensaje de Bienvenida para Usuario Nuevo -->
+                        <div class="bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl shadow-xl p-8 text-white">
+                            <div class="text-center">
+                                <div class="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <i class="fas fa-rocket text-4xl"></i>
+                                </div>
+                                <h2 class="text-3xl font-bold mb-3">¡Bienvenido a SpeakLexi!</h2>
+                                <p class="text-lg text-purple-100 mb-6">Estás a punto de comenzar tu viaje de aprendizaje de idiomas</p>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                                    <div class="bg-white/10 rounded-lg p-4">
+                                        <i class="fas fa-book-open text-3xl mb-2"></i>
+                                        <p class="font-semibold">Lecciones Interactivas</p>
+                                    </div>
+                                    <div class="bg-white/10 rounded-lg p-4">
+                                        <i class="fas fa-trophy text-3xl mb-2"></i>
+                                        <p class="font-semibold">Gana Logros</p>
+                                    </div>
+                                    <div class="bg-white/10 rounded-lg p-4">
+                                        <i class="fas fa-users text-3xl mb-2"></i>
+                                        <p class="font-semibold">Compite con Amigos</p>
+                                    </div>
+                                </div>
+                                
+                                <button onclick="comenzarPrimeraLeccion()" class="bg-white text-purple-600 font-bold py-4 px-8 rounded-xl hover:bg-gray-100 transition-colors shadow-lg text-lg">
+                                    <i class="fas fa-play mr-2"></i>Comenzar mi Primera Lección
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Grid de Información -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Cómo Empezar -->
+                            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
+                                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                    <i class="fas fa-lightbulb text-yellow-500"></i>
+                                    ¿Cómo Empezar?
+                                </h3>
+                                <ol class="space-y-3 text-gray-700 dark:text-gray-300">
+                                    <li class="flex items-start gap-3">
+                                        <span class="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                                        <span>Explora nuestro catálogo de lecciones</span>
+                                    </li>
+                                    <li class="flex items-start gap-3">
+                                        <span class="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                                        <span>Completa ejercicios interactivos</span>
+                                    </li>
+                                    <li class="flex items-start gap-3">
+                                        <span class="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">3</span>
+                                        <span>Gana XP y desbloquea logros</span>
+                                    </li>
+                                    <li class="flex items-start gap-3">
+                                        <span class="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">4</span>
+                                        <span>Sube en el ranking global</span>
+                                    </li>
+                                </ol>
+                            </div>
+                            
+                            <!-- Tu Objetivo -->
+                            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
+                                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                    <i class="fas fa-target text-red-500"></i>
+                                    Tu Objetivo de Aprendizaje
+                                </h3>
+                                <div class="space-y-4">
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Nivel Actual</p>
+                                        <p class="text-2xl font-bold text-gray-900 dark:text-white">A1 - Principiante</p>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Idioma</p>
+                                        <p class="text-2xl font-bold text-gray-900 dark:text-white">Inglés 🇬🇧</p>
+                                    </div>
+                                    <div class="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg p-4 border-2 border-purple-200 dark:border-purple-800">
+                                        <p class="text-sm text-purple-600 dark:text-purple-400 mb-2">Meta Diaria</p>
+                                        <p class="text-2xl font-bold text-purple-600 dark:text-purple-400">30 minutos</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Acciones Rápidas -->
+                        ${generarAccionesRapidas()}
+                    </div>
+                `;
+            }
+            
+            // Intentar cargar lecciones recomendadas
+            cargarLeccionesRecomendadas().catch(() => {
+                console.log('ℹ️ No se pudieron cargar lecciones recomendadas para usuario nuevo');
+            });
+        }
+
+        // ===================================
+        // ACTUALIZAR STATS SUPERIORES - CORREGIDO
         // ===================================
         function actualizarStatsSuperiores(data) {
-            const perfil = data.perfil || {};
+            // ✅ CORRECCIÓN: Manejar diferentes estructuras de datos
+            const usuario = data.usuario || data.perfil || {};
+            const progreso = data.progreso || data.estadisticas || {};
             const estadisticas = data.estadisticas || {};
 
-            console.log('📈 Actualizando stats con:', { perfil, estadisticas });
+            console.log('📈 Actualizando stats con:', { usuario, progreso, estadisticas });
 
             // Racha 
             if (elementos.diasRachaStat) {
-                elementos.diasRachaStat.textContent = perfil.racha_dias || 0;
+                elementos.diasRachaStat.textContent = estadisticas.rachaActual || usuario.racha_dias || 0;
             }
 
             // XP Total
             if (elementos.totalXPStat) {
-                elementos.totalXPStat.textContent = perfil.total_xp || 0;
+                elementos.totalXPStat.textContent = usuario.xp || usuario.total_xp || estadisticas.puntosTotales || 0;
             }
 
             // Lecciones Completadas
             if (elementos.leccionesCompletadasStat) {
-                elementos.leccionesCompletadasStat.textContent = estadisticas.lecciones_completadas || 0;
+                elementos.leccionesCompletadasStat.textContent = 
+                    progreso.leccionesCompletadas || 
+                    estadisticas.lecciones_completadas || 
+                    0;
             }
 
             // Nivel e Idioma
             if (elementos.nivelUsuarioStat) {
-                elementos.nivelUsuarioStat.textContent = perfil.nivel_actual || 'A1';
+                elementos.nivelUsuarioStat.textContent = usuario.nivel || usuario.nivel_actual || 'A1';
             }
             if (elementos.idiomaAprendizajeStat) {
-                elementos.idiomaAprendizajeStat.textContent = perfil.idioma_aprendizaje || 'Inglés';
+                elementos.idiomaAprendizajeStat.textContent = usuario.idioma || usuario.idioma_aprendizaje || 'Inglés';
             }
 
             // Actualizar greeting
             if (elementos.greeting) {
-                const nombre = perfil.nombre || 'Estudiante';
+                const nombre = usuario.nombre || 'Estudiante';
                 const hora = new Date().getHours();
                 let saludo = 'Buenos días';
                 if (hora >= 12 && hora < 19) saludo = 'Buenas tardes';
@@ -159,27 +319,30 @@
         }
 
         // ===================================
-        // RENDERIZAR CONTENIDO DINÁMICO
+        // RENDERIZAR CONTENIDO DINÁMICO - CORREGIDO
         // ===================================
         function renderizarContenidoDinamico(data) {
             if (!elementos.contenidoDashboard) return;
 
-            const perfil = data.perfil || {};
-            const estadisticas = data.estadisticas || {};
-            const leccionesEnProgreso = data.lecciones_en_progreso || [];
-            const leccionesCompletadas = data.lecciones_completadas || [];
-            const logros = data.logros_recientes || [];
+            // ✅ CORRECCIÓN: Manejar diferentes estructuras de datos
+            const usuario = data.usuario || data.perfil || {};
+            const progreso = data.progreso || data.estadisticas || {};
+            const leccionesEnProgreso = data.leccionesEnProgreso || data.lecciones_en_progreso || [];
+            const leccionesCompletadas = data.leccionesCompletadas || data.lecciones_completadas || data.actividadReciente || [];
+            const logros = data.logros || data.logros_recientes || [];
+            const cursos = data.cursos || [];
+            const leccionesRecomendadas = data.leccionesRecomendadas || [];
 
             // Verificar si hay datos mínimos
-            const tieneDatosMinimos = perfil.nivel_actual || estadisticas.lecciones_completadas !== undefined;
+            const tieneDatosMinimos = usuario.nivel || progreso.leccionesCompletadas !== undefined;
 
             if (!tieneDatosMinimos) {
-                mostrarEstadoSinDatos('No hay datos de progreso disponibles. Comienza tu primera lección.');
+                mostrarEstadoInicial();
                 return;
             }
 
             // Calcular progreso semanal
-            const tiempoTotal = estadisticas.tiempo_total_minutos || 0;
+            const tiempoTotal = progreso.tiempoEstudio || data.tiempo_total_minutos || 0;
             const metaDiaria = 30;
             const porcentajeMeta = Math.min(100, Math.round((tiempoTotal / metaDiaria) * 100));
 
@@ -189,15 +352,15 @@
                     <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
                         <!-- Columna Izquierda - 2/3 width -->
                         <div class="xl:col-span-2 space-y-8">
-                            ${generarContinuarAprendizaje(leccionesEnProgreso, perfil)}
-                            ${generarGridProgreso(estadisticas, tiempoTotal, metaDiaria, porcentajeMeta)}
+                            ${generarContinuarAprendizaje(leccionesEnProgreso, usuario)}
+                            ${generarGridProgreso(progreso, tiempoTotal, metaDiaria, porcentajeMeta)}
                             ${generarLeccionesRecientes(leccionesCompletadas)}
-                            ${generarLeccionesEnProgreso(leccionesEnProgreso)}
+                            ${generarCursosEnProgreso(cursos)}
                         </div>
 
                         <!-- Columna Derecha - 1/3 width -->
                         <div class="space-y-8">
-                            ${generarLeaderboard(perfil)}
+                            ${generarLeaderboard(usuario)}
                             ${generarLogros(logros)}
                             ${generarAccionesRapidas()}
                         </div>
@@ -212,10 +375,10 @@
         }
 
         // ===================================
-        // COMPONENTES DINÁMICOS
+        // COMPONENTES DINÁMICOS - CORREGIDOS
         // ===================================
 
-        function generarContinuarAprendizaje(leccionesEnProgreso, perfil) {
+        function generarContinuarAprendizaje(leccionesEnProgreso, usuario) {
             const leccionActiva = leccionesEnProgreso[0];
             
             if (!leccionActiva) {
@@ -233,19 +396,19 @@
                                 <div class="flex items-center justify-between">
                                     <div>
                                         <p class="text-sm opacity-90">Curso disponible</p>
-                                        <p class="text-xl font-bold">${perfil.idioma_aprendizaje || 'Inglés'}</p>
+                                        <p class="text-xl font-bold">${usuario.idioma || 'Inglés'}</p>
                                     </div>
                                     <div class="text-right">
                                         <p class="text-sm opacity-90">Tu nivel</p>
-                                        <p class="text-xl font-bold">${perfil.nivel_actual || 'A1'}</p>
+                                        <p class="text-xl font-bold">${usuario.nivel || 'A1'}</p>
                                     </div>
                                 </div>
                             </div>
                             
                             <div class="flex-shrink-0">
-                                <button onclick="verLeccionesRecomendadas()" class="w-full lg:w-auto bg-white text-purple-600 font-semibold py-4 px-8 rounded-xl hover:bg-gray-100 transition-colors shadow-lg hover:shadow-xl flex items-center justify-center gap-2 transform hover:scale-105">
+                                <button onclick="comenzarPrimeraLeccion()" class="w-full lg:w-auto bg-white text-purple-600 font-semibold py-4 px-8 rounded-xl hover:bg-gray-100 transition-colors shadow-lg hover:shadow-xl flex items-center justify-center gap-2 transform hover:scale-105">
                                     <i class="fas fa-play"></i>
-                                    <span>Ver Lecciones</span>
+                                    <span>Comenzar Lección</span>
                                 </button>
                             </div>
                         </div>
@@ -283,7 +446,7 @@
                                     </div>
                                     <div class="text-right">
                                         <p class="text-sm opacity-90">Siguiente nivel</p>
-                                        <p class="text-xl font-bold">${obtenerSiguienteNivel(perfil.nivel_actual)}</p>
+                                        <p class="text-xl font-bold">${obtenerSiguienteNivel(usuario.nivel)}</p>
                                     </div>
                                 </div>
                             </div>
@@ -300,7 +463,7 @@
             `;
         }
 
-        function generarGridProgreso(estadisticas, tiempoTotal, metaDiaria, porcentajeMeta) {
+        function generarGridProgreso(progreso, tiempoTotal, metaDiaria, porcentajeMeta) {
             return `
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <!-- Meta Diaria -->
@@ -331,15 +494,39 @@
                         <p class="text-center text-sm text-gray-600 dark:text-gray-400">${tiempoTotal} de ${metaDiaria} minutos completados hoy</p>
                     </div>
 
-                    <!-- Progreso Semanal -->
+                    <!-- Estadísticas Rápidas -->
                     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Progreso Semanal</h3>
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Tu Progreso</h3>
                         
                         <div class="space-y-4">
-                            <div class="text-center py-8">
-                                <i class="fas fa-chart-line text-gray-300 dark:text-gray-600 text-4xl mb-4"></i>
-                                <p class="text-gray-500 dark:text-gray-400">Progreso semanal no disponible</p>
-                                <p class="text-sm text-gray-400 dark:text-gray-500 mt-2">Completa más lecciones para ver tu progreso</p>
+                            <div class="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-blue-100 dark:bg-blue-800 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-check-circle text-blue-600 dark:text-blue-400"></i>
+                                    </div>
+                                    <span class="text-gray-700 dark:text-gray-300">Lecciones Completadas</span>
+                                </div>
+                                <span class="text-xl font-bold text-blue-600 dark:text-blue-400">${progreso.leccionesCompletadas || 0}</span>
+                            </div>
+                            
+                            <div class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-green-100 dark:bg-green-800 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-clock text-green-600 dark:text-green-400"></i>
+                                    </div>
+                                    <span class="text-gray-700 dark:text-gray-300">Tiempo de Estudio</span>
+                                </div>
+                                <span class="text-xl font-bold text-green-600 dark:text-green-400">${tiempoTotal}m</span>
+                            </div>
+                            
+                            <div class="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-purple-100 dark:bg-purple-800 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-chart-line text-purple-600 dark:text-purple-400"></i>
+                                    </div>
+                                    <span class="text-gray-700 dark:text-gray-300">Progreso General</span>
+                                </div>
+                                <span class="text-xl font-bold text-purple-600 dark:text-purple-400">${progreso.general || 0}%</span>
                             </div>
                         </div>
                     </div>
@@ -379,12 +566,12 @@
                                     <i class="fas fa-check text-green-600 dark:text-green-400 text-lg"></i>
                                 </div>
                                 <div class="flex-1">
-                                    <p class="font-semibold text-gray-900 dark:text-white">${leccion.titulo}</p>
+                                    <p class="font-semibold text-gray-900 dark:text-white">${leccion.titulo || 'Lección completada'}</p>
                                     <p class="text-sm text-gray-600 dark:text-gray-400">Completado - ${leccion.xp_ganado || 0} XP</p>
                                 </div>
                                 <div class="text-right">
                                     <span class="text-2xl">✅</span>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">${formatearFecha(leccion.fecha_completada)}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">${formatearFecha(leccion.fechaActualizacion || leccion.fecha_completada)}</p>
                                 </div>
                             </div>
                         `).join('')}
@@ -393,15 +580,15 @@
             `;
         }
 
-        function generarLeccionesEnProgreso(leccionesEnProgreso) {
-            if (leccionesEnProgreso.length === 0) {
+        function generarCursosEnProgreso(cursos) {
+            if (cursos.length === 0) {
                 return `
                     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Lecciones en Progreso</h3>
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Tus Cursos</h3>
                         <div class="text-center py-8">
-                            <i class="fas fa-play-circle text-gray-300 dark:text-gray-600 text-4xl mb-4"></i>
-                            <p class="text-gray-500 dark:text-gray-400">No tienes lecciones en progreso</p>
-                            <p class="text-sm text-gray-400 dark:text-gray-500 mt-2">¡Comienza una nueva lección!</p>
+                            <i class="fas fa-graduation-cap text-gray-300 dark:text-gray-600 text-4xl mb-4"></i>
+                            <p class="text-gray-500 dark:text-gray-400">No estás inscrito en ningún curso</p>
+                            <p class="text-sm text-gray-400 dark:text-gray-500 mt-2">¡Explora nuestros cursos disponibles!</p>
                         </div>
                     </div>
                 `;
@@ -409,21 +596,21 @@
 
             return `
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Lecciones en Progreso</h3>
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Tus Cursos</h3>
                     <div class="space-y-4">
-                        ${leccionesEnProgreso.map(leccion => `
-                            <div class="flex items-center gap-4 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 hover:shadow-md transition-all cursor-pointer group transform hover:-translate-y-0.5" onclick="iniciarLeccion(${leccion.id})">
-                                <div class="w-12 h-12 bg-blue-100 dark:bg-blue-800 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <i class="fas fa-play text-blue-600 dark:text-blue-400 text-lg"></i>
+                        ${cursos.map(curso => `
+                            <div class="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 hover:shadow-md transition-all cursor-pointer group transform hover:-translate-y-0.5" onclick="verCurso(${curso.id})">
+                                <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform text-white text-lg">
+                                    ${curso.icono || '📚'}
                                 </div>
                                 <div class="flex-1">
-                                    <p class="font-semibold text-gray-900 dark:text-white">${leccion.titulo}</p>
-                                    <p class="text-sm text-gray-600 dark:text-gray-400">En progreso - ${leccion.progreso || 0}%</p>
+                                    <p class="font-semibold text-gray-900 dark:text-white">${curso.nombre}</p>
+                                    <p class="text-sm text-gray-600 dark:text-gray-400">${curso.nivel} - ${curso.progreso || 0}% completado</p>
                                     <div class="mt-2 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-                                        <div class="bg-blue-500 rounded-full h-2 transition-all duration-1000" style="width: ${leccion.progreso || 0}%"></div>
+                                        <div class="bg-gradient-to-r from-blue-500 to-purple-500 rounded-full h-2 transition-all duration-1000" style="width: ${curso.progreso || 0}%"></div>
                                     </div>
                                 </div>
-                                <span class="text-2xl">📖</span>
+                                <span class="text-2xl">${curso.icono || '📚'}</span>
                             </div>
                         `).join('')}
                     </div>
@@ -431,33 +618,39 @@
             `;
         }
 
-        function generarLeaderboard(perfil) {
-            const nombreCompleto = `${perfil.nombre || 'Usuario'} ${perfil.primer_apellido || ''}`;
+        function generarLeaderboard(usuario) {
+            const nombreCompleto = `${usuario.nombre || 'Usuario'} ${usuario.primer_apellido || ''}`;
             const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(nombreCompleto)}&background=6366f1&color=fff`;
 
             return `
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
                     <div class="flex items-center justify-between mb-6">
-                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">Clasificación Global</h3>
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">Tu Progreso</h3>
                     </div>
                     
                     <div class="space-y-4">
                         <!-- Usuario actual -->
-                        <div class="flex items-center gap-4 p-3 rounded-xl bg-primary-50 dark:bg-primary-900/20 border-2 border-primary-200 dark:border-primary-800">
-                            <span class="text-lg font-bold text-primary-600 dark:text-primary-400">-</span>
-                            <img src="${avatarUrl}" class="w-8 h-8 rounded-full border-2 border-primary-500" alt="">
+                        <div class="flex items-center gap-4 p-4 rounded-xl bg-primary-50 dark:bg-primary-900/20 border-2 border-primary-200 dark:border-primary-800">
+                            <img src="${avatarUrl}" class="w-12 h-12 rounded-full border-2 border-primary-500" alt="">
                             <div class="flex-1">
-                                <p class="font-semibold text-sm text-primary-600 dark:text-primary-400">Tú</p>
-                                <p class="text-xs text-primary-500 dark:text-primary-400">${perfil.total_xp || 0} XP</p>
-                            </div>
-                            <div class="text-xs bg-primary-100 dark:bg-primary-800 text-primary-600 dark:text-primary-400 px-2 py-1 rounded-full">
-                                Nuevo
+                                <p class="font-semibold text-primary-600 dark:text-primary-400">${usuario.nombre || 'Estudiante'}</p>
+                                <p class="text-sm text-primary-500 dark:text-primary-400">Nivel ${usuario.nivel || 'A1'}</p>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <i class="fas fa-star text-yellow-500"></i>
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">${usuario.xp || 0} XP</span>
+                                </div>
                             </div>
                         </div>
                         
-                        <div class="text-center py-4">
-                            <i class="fas fa-trophy text-gray-300 dark:text-gray-600 text-2xl mb-2"></i>
-                            <p class="text-gray-500 dark:text-gray-400 text-sm">Clasificación no disponible</p>
+                        <div class="grid grid-cols-2 gap-4 text-center">
+                            <div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white">${usuario.xp || 0}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">XP Total</p>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white">${usuario.nivel || 'A1'}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Nivel</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -493,8 +686,8 @@
                                     <span class="text-2xl">🎯</span>
                                 </div>
                                 <div>
-                                    <p class="font-semibold text-gray-900 dark:text-white">${logro.titulo}</p>
-                                    <p class="text-sm text-gray-600 dark:text-gray-400">${logro.descripcion}</p>
+                                    <p class="font-semibold text-gray-900 dark:text-white">${logro.titulo || 'Logro desbloqueado'}</p>
+                                    <p class="text-sm text-gray-600 dark:text-gray-400">${logro.descripcion || '¡Felicidades!'}</p>
                                     <div class="mt-1 flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-400">
                                         <i class="fas fa-gem"></i>
                                         <span>+${logro.xp_otorgado || 50} XP</span>
@@ -571,8 +764,8 @@
                                 </p>
                                 
                                 <div class="flex justify-between text-sm text-gray-500 dark:text-gray-400 mb-4">
-                                    <span>⏱️ ${leccion.duracion_minutos} min</span>
-                                    <span>🌍 ${leccion.idioma}</span>
+                                    <span>⏱️ ${leccion.duracion_minutos || 30} min</span>
+                                    <span>🌍 ${leccion.idioma || 'Inglés'}</span>
                                 </div>
                                 
                                 <button 
@@ -647,7 +840,7 @@
                                 <i class="fas fa-sync-alt mr-2"></i>Reintentar
                             </button>
                             <button 
-                                onclick="verLeccionesRecomendadas()"
+                                onclick="comenzarPrimeraLeccion()"
                                 class="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors font-semibold">
                                 <i class="fas fa-play mr-2"></i>Comenzar Lección
                             </button>
@@ -681,6 +874,10 @@
             window.location.href = `/pages/estudiante/leccion-detalle.html?id=${leccionId}`;
         };
 
+        window.verCurso = function(cursoId) {
+            window.location.href = `/pages/estudiante/curso-detalle.html?id=${cursoId}`;
+        };
+
         window.verLeccionesRecomendadas = function() {
             window.location.href = '/pages/estudiante/lecciones.html';
         };
@@ -699,6 +896,12 @@
 
         window.recargarDashboard = function() {
             window.location.reload();
+        };
+
+        // ✅ NUEVA FUNCIÓN PARA USUARIOS NUEVOS
+        window.comenzarPrimeraLeccion = function() {
+            console.log('🚀 Usuario nuevo comenzando primera lección');
+            window.location.href = '/pages/estudiante/lecciones.html?filtro=principiante';
         };
 
         // ===================================

@@ -1,8 +1,8 @@
 /* ============================================
-   SPEAKLEXI 2.0 - CONFIGURACIÓN DE APLICACIÓN
+   SPEAKLEXI 2.0 - CONFIGURACIÓN COMPLETA
    Archivo: frontend/config/app-config.js
-   Descripción: Configuración centralizada basada en arquitectura modular
-   Módulos: Usuarios, Lecciones, Aprendizaje, Desempeño, Mantenimiento
+   Descripción: Configuración centralizada para todos los módulos
+   Módulos: Usuarios, Lecciones, Aprendizaje, Desempeño
    ============================================ */
 
 /**
@@ -12,11 +12,12 @@ const APP_ENV = {
     MODE: 'development', // 'development' | 'production' | 'testing'
     DEBUG: true,
     VERSION: '2.0.0',
-    APP_NAME: 'SpeakLexi'
+    APP_NAME: 'SpeakLexi',
+    BUILD_DATE: '2025-01-15'
 };
 
 /**
- * Configuración de la API
+ * Configuración de la API - COMPLETAMENTE ACTUALIZADA
  */
 const API_CONFIG = {
     // URLs base según entorno
@@ -36,7 +37,7 @@ const API_CONFIG = {
     RETRY_DELAY: 1000,
     
     // ============================================
-    // ENDPOINTS CORREGIDOS - CONSISTENTES CON REST
+    // ENDPOINTS COMPLETOS - TODOS LOS MÓDULOS
     // ============================================
     
     ENDPOINTS: {
@@ -93,13 +94,13 @@ const API_CONFIG = {
         // MÓDULO 2: GESTIÓN DE LECCIONES Y CONTENIDO
         // ========================================
         
-        // UC-08: Crear nuevas lecciones - RUTAS CORREGIDAS
+        // UC-08: Crear nuevas lecciones
         LECCIONES: {
-            LISTAR: '/lecciones',           // GET /api/lecciones
-            CREAR: '/lecciones',            // POST /api/lecciones ✅ CORREGIDO
-            DETALLE: '/lecciones/:id',      // GET /api/lecciones/:id
-            ACTUALIZAR: '/lecciones/:id',   // PUT /api/lecciones/:id
-            ELIMINAR: '/lecciones/:id',     // DELETE /api/lecciones/:id
+            LISTAR: '/lecciones',
+            CREAR: '/lecciones',
+            DETALLE: '/lecciones/:id',
+            ACTUALIZAR: '/lecciones/:id',
+            ELIMINAR: '/lecciones/:id',
             
             // Contenido de la lección
             CONTENIDO: '/lecciones/:id/contenido',
@@ -108,7 +109,12 @@ const API_CONFIG = {
             // Estado del alumno
             INICIAR: '/lecciones/:id/iniciar',
             COMPLETAR: '/lecciones/:id/completar',
-            PROGRESO_LECCION: '/lecciones/:id/progreso'
+            PROGRESO_LECCION: '/lecciones/:id/progreso',
+            
+            // Para estudiantes
+            RECOMENDADAS: '/lecciones/recomendadas',
+            EN_PROGRESO: '/lecciones/en-progreso',
+            COMPLETADAS: '/lecciones/completadas'
         },
         
         // UC-09: Agregar multimedia
@@ -121,27 +127,29 @@ const API_CONFIG = {
             VALIDAR_FORMATO: '/multimedia/validar'
         },
         
-        // ✅ NUEVOS ENDPOINTS DE CURSOS AGREGADOS
+        // Gestión de cursos
         CURSOS: {
             LISTAR: '/cursos',
             DETALLE: '/cursos/:id',
             CREAR: '/cursos',
             ACTUALIZAR: '/cursos/:id',
             ELIMINAR: '/cursos/:id',
-            POR_NIVEL: (nivel) => `/cursos/nivel/${nivel}`,
-            LECCIONES: (id) => `/cursos/${id}/lecciones`,
-            INSCRIBIR: (id) => `/cursos/${id}/inscribir`,
-            PROGRESO: (id) => `/cursos/${id}/progreso`,
-            SIGUIENTE_LECCION: (id) => `/cursos/${id}/siguiente-leccion` // ✅ CORREGIDO: comilla simple
+            POR_NIVEL: '/cursos/nivel/:nivel',
+            LECCIONES: '/cursos/:id/lecciones',
+            INSCRIBIR: '/cursos/:id/inscribir',
+            PROGRESO: '/cursos/:id/progreso',
+            SIGUIENTE_LECCION: '/cursos/:id/siguiente-leccion'
         },
         
-        // ✅ NUEVOS ENDPOINTS DE ESTUDIANTE AGREGADOS
+        // Dashboard estudiante
         ESTUDIANTE: {
+            DASHBOARD: '/estudiante/dashboard',
             MIS_CURSOS: '/estudiante/mis-cursos',
             ESTADISTICAS: '/estudiante/estadisticas',
             PROGRESO_GENERAL: '/estudiante/progreso',
             CERTIFICADOS: '/estudiante/certificados',
-            ACTIVIDAD_RECIENTE: '/estudiante/actividad-reciente'
+            ACTIVIDAD_RECIENTE: '/estudiante/actividad-reciente',
+            LECCIONES_RECOMENDADAS: '/estudiante/lecciones-recomendadas'
         },
         
         // ========================================
@@ -154,7 +162,8 @@ const API_CONFIG = {
             SINCRONIZAR: '/progreso/sincronizar',
             HISTORIAL: '/progreso/historial',
             POR_LECCION: '/progreso/leccion/:id',
-            POR_CURSO: '/progreso/curso/:id'
+            POR_CURSO: '/progreso/curso/:id',
+            RESUMEN: '/progreso/resumen'
         },
         
         // UC-11: Otorgar recompensas
@@ -191,91 +200,62 @@ const API_CONFIG = {
         },
         
         // ========================================
-        // MÓDULO 4: GESTIÓN DE DESEMPEÑO Y RETROALIMENTACIÓN
+        // MÓDULO 4: GESTIÓN DE DESEMPEÑO Y ANÁLISIS
         // ========================================
         
-        // UC-13: Consultar estadísticas de progreso
+        // ✅ UC-13: Consultar estadísticas de progreso (PROFESOR)
+        PROFESOR: {
+            // Dashboard y gestión general
+            DASHBOARD: '/profesor/dashboard',
+            ALUMNOS: '/profesor/alumnos',
+            ALUMNO_DETALLE: '/profesor/alumnos/:id',
+            
+            // Estadísticas detalladas
+            ESTADISTICAS: {
+                GENERAL: '/profesor/estadisticas/general',
+                POR_NIVEL: '/profesor/estadisticas/por-nivel',
+                TENDENCIA_MENSUAL: '/profesor/estadisticas/tendencia-mensual',
+                MEJORES_ALUMNOS: '/profesor/estadisticas/mejores-alumnos',
+                AREAS_CRITICAS: '/profesor/estadisticas/areas-criticas',
+                EXPORTAR_REPORTE: '/profesor/estadisticas/exportar',
+                DISTRIBUCION_HABILIDADES: '/profesor/estadisticas/distribucion-habilidades'
+            },
+            
+            // ✅ UC-14: Revisar retroalimentación
+            RETROALIMENTACION: {
+                ALUMNOS: '/profesor/alumnos',
+                POR_ALUMNO: '/profesor/retroalimentacion/alumno/:id',
+                CREAR: '/profesor/retroalimentacion',
+                ACTUALIZAR: '/profesor/retroalimentacion/:id',
+                ELIMINAR: '/profesor/retroalimentacion/:id',
+                LECCIONES_ALUMNO: '/profesor/alumno/:id/lecciones',
+                LISTAR_TODAS: '/profesor/retroalimentaciones'
+            },
+            
+            // ✅ UC-15: Planificar nuevos contenidos
+            PLANIFICACION: {
+                ANALIZAR: '/profesor/planificacion/analisis',
+                PLANES: '/profesor/planificacion/planes',
+                CREAR: '/profesor/planificacion/planes',
+                ACTUALIZAR: '/profesor/planificacion/planes/:id',
+                ELIMINAR: '/profesor/planificacion/planes/:id',
+                DETALLE: '/profesor/planificacion/planes/:id',
+                SUGERENCIAS: '/profesor/planificacion/sugerencias'
+            }
+        },
+        
+        // Endpoints genéricos (para compatibilidad)
         ESTADISTICAS: {
             ALUMNO: '/estadisticas/alumno/:id',
             CURSO: '/estadisticas/curso/:id',
-            GENERAL: '/estadisticas/general',
-            REPORTE: '/estadisticas/reporte',
-            AREAS_MEJORA: '/estadisticas/areas-mejora/:id'
+            GENERAL: '/estadisticas/general'
         },
         
-        // UC-14: Revisar retroalimentación
         RETROALIMENTACION: {
             LISTAR: '/retroalimentacion',
             CREAR: '/retroalimentacion/crear',
             POR_LECCION: '/retroalimentacion/leccion/:id',
-            POR_ALUMNO: '/retroalimentacion/alumno/:id',
-            RESPONDER: '/retroalimentacion/:id/responder'
-        },
-        
-        // UC-15: Planificar nuevos contenidos
-        PLANIFICACION: {
-            CREAR_PLAN: '/planificacion/crear',
-            PLANES: '/planificacion/planes',
-            DETALLE: '/planificacion/:id',
-            ACTUALIZAR: '/planificacion/:id',
-            ELIMINAR: '/planificacion/:id',
-            ANALIZAR_DESEMPENO: '/planificacion/analizar'
-        },
-        
-        PROFESOR: {
-            DASHBOARD: '/profesor/dashboard',
-            ALUMNOS: '/profesor/alumnos',
-            ALUMNO_DETALLE: '/profesor/alumnos/:id',
-            ESTADISTICAS_GRUPO: '/profesor/estadisticas',
-            RETROALIMENTACIONES: '/profesor/retroalimentaciones'
-        },
-        
-        // ========================================
-        // MÓDULO 5: GESTIÓN DE SOPORTE Y MANTENIMIENTO
-        // ========================================
-        
-        // UC-16: Consultar reportes de fallas
-        REPORTES: {
-            LISTAR: '/reportes/fallas',
-            CREAR: '/reportes/fallas/crear',
-            DETALLE: '/reportes/fallas/:id',
-            ACTUALIZAR_ESTADO: '/reportes/fallas/:id/estado',
-            ASIGNAR_PERSONAL: '/reportes/fallas/:id/asignar',
-            RESOLVER: '/reportes/fallas/:id/resolver'
-        },
-        
-        // UC-17: Programar tareas de mantenimiento
-        MANTENIMIENTO: {
-            TAREAS: '/mantenimiento/tareas',
-            CREAR_TAREA: '/mantenimiento/tareas/crear',
-            DETALLE_TAREA: '/mantenimiento/tareas/:id',
-            ACTUALIZAR_TAREA: '/mantenimiento/tareas/:id',
-            COMPLETAR_TAREA: '/mantenimiento/tareas/:id/completar',
-            PROGRAMAR: '/mantenimiento/programar'
-        },
-        
-        // ========================================
-        // ADMIN (transversal a todos los módulos)
-        // ========================================
-        ADMIN: {
-            // Gestión de usuarios
-            USUARIOS: '/admin/usuarios',
-            USUARIO_DETALLE: '/admin/usuarios/:id',
-            CREAR_USUARIO: '/admin/usuarios',
-            ACTUALIZAR_USUARIO: '/admin/usuarios/:id',
-            ELIMINAR_USUARIO: '/admin/usuarios/:id',
-            
-            // Gestión de contenido
-            CONTENIDO: '/admin/contenido',
-            CONTENIDO_DETALLE: '/admin/contenido/:id',
-            
-            // Estadísticas generales
-            ESTADISTICAS: '/admin/estadisticas',
-            REPORTES: '/admin/reportes',
-            
-            // Sistema
-            LOGS: '/admin/logs',
-            CONFIGURACION: '/admin/configuracion'
+            POR_ALUMNO: '/retroalimentacion/alumno/:id'
         },
         
         // Configuración y Health
@@ -287,7 +267,6 @@ const API_CONFIG = {
 
 /**
  * Configuración de almacenamiento local
- * Basado en los atributos de la clase Usuario de la arquitectura
  */
 const STORAGE_CONFIG = {
     // Keys para localStorage
@@ -296,7 +275,7 @@ const STORAGE_CONFIG = {
         TOKEN: 'token',
         REFRESH_TOKEN: 'refresh_token',
         
-        // Usuario (según tabla usuarios)
+        // Usuario
         USUARIO: 'usuario',
         USUARIO_ID: 'usuario_id',
         USUARIO_ROL: 'rol',
@@ -305,9 +284,9 @@ const STORAGE_CONFIG = {
         // Preferencias
         THEME: 'color-theme',
         EMAIL: 'correo',
-        CORREO: 'correo', // Alias
+        CORREO: 'correo',
         
-        // Perfil estudiante (según tabla perfil_estudiantes)
+        // Perfil estudiante
         IDIOMA: 'idioma_aprendizaje',
         NIVEL_ACTUAL: 'nivel_actual',
         CURSO_ACTUAL: 'curso_actual',
@@ -340,7 +319,7 @@ const UI_CONFIG = {
     // Temas disponibles
     THEMES: ['light', 'dark', 'auto'],
     
-    // Idiomas soportados (según RF del sistema)
+    // Idiomas soportados
     IDIOMAS_DISPONIBLES: [
         { codigo: 'es', nombre: 'Español', flag: '🇪🇸' },
         { codigo: 'en', nombre: 'English (Inglés)', flag: '🇬🇧' },
@@ -349,7 +328,7 @@ const UI_CONFIG = {
         { codigo: 'it', nombre: 'Italiano', flag: '🇮🇹' }
     ],
     
-    // Niveles CEFR (según tabla perfil_estudiantes)
+    // Niveles CEFR
     NIVELES_CEFR: [
         { codigo: 'A1', nombre: 'Principiante', descripcion: 'Usuario básico' },
         { codigo: 'A2', nombre: 'Elemental', descripcion: 'Usuario básico' },
@@ -386,7 +365,7 @@ const UI_CONFIG = {
         EASING: 'ease-in-out'
     },
     
-    // ✅ Rutas de la aplicación
+    // Rutas de la aplicación
     RUTAS: {
         HOME: '/index.html',
         LOGIN: '/pages/auth/login.html',
@@ -395,7 +374,16 @@ const UI_CONFIG = {
         ASIGNAR_NIVEL: '/pages/onboarding/asignar-nivel.html',
         RECUPERAR_PASSWORD: '/pages/auth/recuperar-contrasena.html',
         
-        // ✅ NUEVAS RUTAS PARA CURSOS
+        // Rutas para estudiantes
+        ESTUDIANTE: {
+            DASHBOARD: '/pages/estudiante/estudiante-dashboard.html',
+            MIS_CURSOS: '/pages/estudiante/mis-cursos.html',
+            ESTADISTICAS: '/pages/estudiante/estadisticas-estudiante.html',
+            CERTIFICADOS: '/pages/estudiante/certificados.html',
+            PERFIL: '/pages/estudiante/perfil-estudiante.html'
+        },
+        
+        // Rutas para cursos
         CURSOS: {
             CATALOGO: '/pages/cursos/catalogo-cursos.html',
             DETALLE: '/pages/cursos/detalle-curso.html',
@@ -403,18 +391,26 @@ const UI_CONFIG = {
             PROGRESO: '/pages/cursos/progreso-curso.html'
         },
         
-        // ✅ NUEVAS RUTAS PARA ESTUDIANTE
-        ESTUDIANTE: {
-            DASHBOARD: '/pages/estudiante/estudiante-dashboard.html',
-            MIS_CURSOS: '/pages/estudiante/mis-cursos.html',
-            ESTADISTICAS: '/pages/estudiante/estadisticas-estudiante.html',
-            CERTIFICADOS: '/pages/estudiante/certificados.html'
+        // ✅ NUEVAS RUTAS PARA PROFESOR
+        PROFESOR: {
+            DASHBOARD: '/pages/profesor/profesor-dashboard.html',
+            ESTADISTICAS: '/pages/profesor/estadisticas-profesor.html',
+            RETROALIMENTACION: '/pages/profesor/retroalimentacion-profesor.html',
+            PLANIFICACION: '/pages/profesor/planificacion.html',
+            ALUMNOS: '/pages/profesor/gestion-alumnos.html'
+        },
+        
+        // Rutas para admin
+        ADMIN: {
+            DASHBOARD: '/pages/admin/admin-dashboard.html',
+            USUARIOS: '/pages/admin/gestion-usuarios.html',
+            CONTENIDO: '/pages/admin/gestion-contenido.html'
         }
     }
 };
 
 /**
- * ✅ NUEVA: Configuración de niveles CEFR y evaluación
+ * Configuración de niveles CEFR y evaluación
  */
 const NIVELES_CONFIG = {
     // Niveles disponibles (CEFR estándar)
@@ -507,7 +503,7 @@ const NIVELES_CONFIG = {
 };
 
 /**
- * ✅ NUEVA: Configuración de tiempos y timeouts
+ * Configuración de tiempos y timeouts
  */
 const TIMEOUTS_CONFIG = {
     // Timeout para peticiones API (ms)
@@ -540,7 +536,6 @@ const TIMEOUTS_CONFIG = {
 
 /**
  * Configuración de validación
- * Basado en los requisitos de la base de datos
  */
 const VALIDATION_CONFIG = {
     // Reglas de contraseña
@@ -553,27 +548,27 @@ const VALIDATION_CONFIG = {
         REQUIRE_SPECIAL_CHARS: false
     },
     
-    // Reglas de email (según tabla usuarios: VARCHAR(150))
+    // Reglas de email
     EMAIL: {
         PATTERN: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
         MAX_LENGTH: 150
     },
     
-    // Reglas de nombre (según tabla usuarios: VARCHAR(100))
+    // Reglas de nombre
     NOMBRE: {
         MIN_LENGTH: 2,
         MAX_LENGTH: 100,
         PATTERN: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/
     },
     
-    // Reglas de código de verificación (VARCHAR(6))
+    // Reglas de código de verificación
     CODIGO_VERIFICACION: {
         LENGTH: 6,
         PATTERN: /^\d{6}$/,
         EXPIRACION_MINUTOS: 15
     },
     
-    // Validaciones de multimedia (UC-09)
+    // Validaciones de multimedia
     MULTIMEDIA: {
         FORMATOS_IMAGEN: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
         FORMATOS_VIDEO: ['mp4', 'webm', 'ogg'],
@@ -585,10 +580,9 @@ const VALIDATION_CONFIG = {
 
 /**
  * Configuración de gamificación
- * Basado en UC-10, UC-11, UC-12 y Módulo 3
  */
 const GAMIFICACION_CONFIG = {
-    // Puntos por acción (UC-10: Registrar progreso)
+    // Puntos por acción
     PUNTOS: {
         LECCION_COMPLETADA: 10,
         EJERCICIO_CORRECTO: 5,
@@ -600,13 +594,13 @@ const GAMIFICACION_CONFIG = {
         PRIMER_LOGIN: 5,
         COMENTARIO_PROFESOR: 15,
         
-        // ✅ NUEVOS: Puntos específicos para cursos
+        // Puntos específicos para cursos
         CURSO_INSCRITO: 15,
         CURSO_COMPLETADO: 200,
         LECCION_CURSO_COMPLETADA: 25
     },
     
-    // Niveles de XP (según tabla perfil_estudiantes: total_xp)
+    // Niveles de XP
     NIVELES: [
         { nivel: 1, xp_requerido: 0, titulo: 'Novato' },
         { nivel: 2, xp_requerido: 100, titulo: 'Aprendiz' },
@@ -620,7 +614,7 @@ const GAMIFICACION_CONFIG = {
         { nivel: 10, xp_requerido: 12000, titulo: 'Campeón' }
     ],
     
-    // Tipos de logros (UC-11: Otorgar recompensas)
+    // Tipos de logros
     TIPOS_LOGROS: [
         'primera_leccion',
         'racha_7_dias',
@@ -632,7 +626,7 @@ const GAMIFICACION_CONFIG = {
         'social',
         'explorador',
         
-        // ✅ NUEVOS: Logros específicos para cursos
+        // Logros específicos para cursos
         'primer_curso',
         'curso_completado',
         'especialista_curso',
@@ -648,28 +642,25 @@ const GAMIFICACION_CONFIG = {
 
 /**
  * Configuración de roles y permisos
- * Basado en la tabla usuarios: rol ENUM('alumno', 'profesor', 'admin')
  */
 const ROLES_CONFIG = {
-    // Roles del sistema (según BD)
+    // Roles del sistema
     ROLES: {
         ALUMNO: 'alumno',
-        ESTUDIANTE: 'alumno', // Alias
+        ESTUDIANTE: 'alumno',
         PROFESOR: 'profesor',
         ADMIN: 'admin',
-        ADMINISTRADOR: 'admin', // Alias
-        MANTENIMIENTO: 'mantenimiento'
+        ADMINISTRADOR: 'admin'
     },
     
-    // ✅ CORRECCIÓN APLICADA: Rutas relativas desde /pages/auth/
+    // Rutas de dashboard por rol
     RUTAS_DASHBOARD: {
         alumno: '../estudiante/estudiante-dashboard.html',
         profesor: '../profesor/profesor-dashboard.html',
-        admin: '../admin/admin-dashboard.html',
-        mantenimiento: '../mantenimiento/mantenimiento-dashboard.html'
+        admin: '../admin/admin-dashboard.html'
     },
     
-    // Estados de cuenta (según BD)
+    // Estados de cuenta
     ESTADOS_CUENTA: {
         ACTIVO: 'activo',
         PENDIENTE_VERIFICACION: 'pendiente_verificacion',
@@ -677,63 +668,53 @@ const ROLES_CONFIG = {
         DESACTIVADO: 'desactivado'
     },
     
-    // Permisos por rol (según casos de uso)
+    // Permisos por rol
     PERMISOS: {
         alumno: [
-            'ver_lecciones',          // UC-10
-            'realizar_ejercicios',    // UC-10
-            'ver_progreso',           // UC-10
-            'ver_recompensas',        // UC-11
-            'ver_ranking',            // UC-12
-            'cambiar_curso',          // UC-06
-            'eliminar_cuenta',        // UC-07
-            
-            // ✅ NUEVOS: Permisos para cursos
+            'ver_lecciones',
+            'realizar_ejercicios',
+            'ver_progreso',
+            'ver_recompensas',
+            'ver_ranking',
+            'cambiar_curso',
+            'eliminar_cuenta',
             'ver_cursos',
             'inscribirse_cursos',
             'ver_progreso_cursos',
             'completar_lecciones_curso'
         ],
         profesor: [
-            'ver_estadisticas',       // UC-13
-            'revisar_retroalimentacion', // UC-14
-            'planificar_contenido',   // UC-15
+            'ver_estadisticas',
+            'revisar_retroalimentacion',
+            'planificar_contenido',
             'dar_retroalimentacion',
-            
-            // ✅ NUEVOS: Permisos para cursos
             'crear_cursos',
             'gestionar_cursos',
-            'ver_estadisticas_cursos'
+            'ver_estadisticas_cursos',
+            'ver_alumnos',
+            'analizar_desempeno'
         ],
         admin: [
             'gestionar_usuarios',
-            'gestionar_contenido',    // UC-08, UC-09
+            'gestionar_contenido',
             'ver_reportes',
-            'crear_lecciones',        // UC-08
-            'agregar_multimedia',     // UC-09
-            
-            // ✅ NUEVOS: Permisos para cursos
+            'crear_lecciones',
+            'agregar_multimedia',
             'gestionar_todos_cursos',
             'asignar_cursos',
-            'ver_analiticas_cursos'
-        ],
-        mantenimiento: [
-            'consultar_reportes',     // UC-16
-            'programar_tareas',       // UC-17
-            'ver_logs',
-            'gestionar_sistema'
+            'ver_analiticas_cursos',
+            'gestionar_profesores'
         ]
     }
 };
 
 /**
  * Configuración de errores
- * Basado en los flujos alternativos de los diagramas de secuencia
  */
 const ERROR_CONFIG = {
     // Códigos de error personalizados
     CODIGOS: {
-        // Autenticación (UC-01, UC-02, UC-03)
+        // Autenticación
         EMAIL_NOT_VERIFIED: 'EMAIL_NOT_VERIFIED',
         CUENTA_DESACTIVADA: 'CUENTA_DESACTIVADA',
         CUENTA_ELIMINADA: 'CUENTA_ELIMINADA',
@@ -742,34 +723,30 @@ const ERROR_CONFIG = {
         CREDENCIALES_INVALIDAS: 'CREDENCIALES_INVALIDAS',
         CODIGO_VERIFICACION_INVALIDO: 'CODIGO_VERIFICACION_INVALIDO',
         
-        // Usuario (UC-04, UC-06, UC-07)
+        // Usuario
         EMAIL_EN_USO: 'EMAIL_EN_USO',
         USUARIO_NO_ENCONTRADO: 'USUARIO_NO_ENCONTRADO',
         PASSWORD_INCORRECTA: 'PASSWORD_INCORRECTA',
         
-        // Contenido (UC-08, UC-09)
+        // Contenido
         FORMATO_NO_SOPORTADO: 'FORMATO_NO_SOPORTADO',
         ARCHIVO_MUY_GRANDE: 'ARCHIVO_MUY_GRANDE',
         LECCION_NO_ENCONTRADA: 'LECCION_NO_ENCONTRADA',
         
-        // ✅ NUEVOS: Errores específicos para cursos
+        // Cursos
         CURSO_NO_ENCONTRADO: 'CURSO_NO_ENCONTRADO',
         CURSO_YA_INSCRITO: 'CURSO_YA_INSCRITO',
         CURSO_NO_DISPONIBLE: 'CURSO_NO_DISPONIBLE',
         LECCION_CURSO_NO_ENCONTRADA: 'LECCION_CURSO_NO_ENCONTRADA',
         PROGRESO_CURSO_NO_ENCONTRADO: 'PROGRESO_CURSO_NO_ENCONTRADO',
         
-        // Progreso (UC-10, UC-11, UC-12)
+        // Progreso
         SIN_PROGRESO: 'SIN_PROGRESO',
         SIN_DATOS_RANKING: 'SIN_DATOS_RANKING',
         
-        // Desempeño (UC-13, UC-14, UC-15)
+        // Desempeño
         SIN_ESTADISTICAS: 'SIN_ESTADISTICAS',
         SIN_RETROALIMENTACION: 'SIN_RETROALIMENTACION',
-        
-        // Mantenimiento (UC-16, UC-17)
-        SIN_REPORTES: 'SIN_REPORTES',
-        ACCESO_DENEGADO: 'ACCESO_DENEGADO',
         
         // Validación
         DATOS_INVALIDOS: 'DATOS_INVALIDOS',
@@ -793,7 +770,7 @@ const ERROR_CONFIG = {
         FORMATO_NO_SOPORTADO: 'El formato del archivo no es compatible',
         ARCHIVO_MUY_GRANDE: 'El archivo es demasiado grande',
         
-        // ✅ NUEVOS: Mensajes para cursos
+        // Cursos
         CURSO_NO_ENCONTRADO: 'El curso solicitado no existe',
         CURSO_YA_INSCRITO: 'Ya estás inscrito en este curso',
         CURSO_NO_DISPONIBLE: 'Este curso no está disponible en este momento',
@@ -804,8 +781,6 @@ const ERROR_CONFIG = {
         SIN_DATOS_RANKING: 'No hay suficientes datos para generar el ranking',
         SIN_ESTADISTICAS: 'No hay estadísticas disponibles',
         SIN_RETROALIMENTACION: 'No hay comentarios registrados',
-        SIN_REPORTES: 'No hay reportes de fallas disponibles',
-        ACCESO_DENEGADO: 'No tienes permisos para acceder a esta función',
         ERROR_SERVIDOR: 'Error en el servidor. Por favor intenta más tarde',
         ERROR_RED: 'No se pudo conectar al servidor. Verifica tu conexión a internet'
     }
@@ -830,8 +805,7 @@ const FORMAT_CONFIG = {
 };
 
 /**
- * Configuración de usuarios de prueba (solo desarrollo)
- * Basado en los roles del sistema
+ * Usuarios de prueba (solo desarrollo)
  */
 const TEST_USERS = APP_ENV.MODE === 'development' ? [
     {
@@ -854,19 +828,11 @@ const TEST_USERS = APP_ENV.MODE === 'development' ? [
         password: "admin123",
         role: "admin",
         description: "Gestión de contenido y usuarios"
-    },
-    {
-        name: "Mantenimiento Demo",
-        email: "mantenimiento@speaklexi.com",
-        password: "mantenimiento123",
-        role: "mantenimiento",
-        description: "Reportes y tareas programadas"
     }
 ] : [];
 
 /**
  * Función auxiliar para navegar al dashboard según el rol
- * @param {string} rol - Rol del usuario
  */
 function navegarAlDashboard(rol) {
     const rutas = ROLES_CONFIG.RUTAS_DASHBOARD;
@@ -875,7 +841,6 @@ function navegarAlDashboard(rol) {
         window.location.href = rutas[rol];
     } else {
         console.error('Rol no válido o dashboard no configurado:', rol);
-        // Redirigir a página por defecto o mostrar error
         window.location.href = '../estudiante/estudiante-dashboard.html';
     }
 }
@@ -900,10 +865,9 @@ const APP_CONFIG = {
 };
 
 // ==========================================================
-// ✅ CORRECCIÓN CRÍTICA: EXPORTAR TODO AL WINDOW GLOBAL
+// EXPORTAR AL WINDOW GLOBAL
 // ==========================================================
 if (typeof window !== 'undefined') {
-    // ✅ CORREGIDO: Exportar cada configuración individualmente
     window.APP_ENV = APP_ENV;
     window.API_CONFIG = API_CONFIG;
     window.STORAGE_CONFIG = STORAGE_CONFIG;
@@ -916,22 +880,15 @@ if (typeof window !== 'undefined') {
     window.ERROR_CONFIG = ERROR_CONFIG;
     window.FORMAT_CONFIG = FORMAT_CONFIG;
     window.TEST_USERS = TEST_USERS;
-    
-    // ✅ CORREGIDO: Exportar configuración completa
     window.APP_CONFIG = APP_CONFIG;
-    
-    // Alias para compatibilidad
     window.SpeakLexiConfig = APP_CONFIG;
-    
-    // Función helper
     window.navegarAlDashboard = navegarAlDashboard;
     
-    console.log('✅ SpeakLexi Config - Variables globales exportadas:');
-    console.log('   - APP_ENV:', window.APP_ENV?.MODE);
-    console.log('   - API_CONFIG:', !!window.API_CONFIG);
-    console.log('   - STORAGE_CONFIG:', !!window.STORAGE_CONFIG);
-    console.log('   - ROLES_CONFIG:', !!window.ROLES_CONFIG);
-    console.log('   - VALIDATION_CONFIG:', !!window.VALIDATION_CONFIG);
+    console.log('✅ SpeakLexi Config - Configuración completa cargada');
+    console.log('   - Modo:', window.APP_ENV?.MODE);
+    console.log('   - Versión:', window.APP_ENV?.VERSION);
+    console.log('   - Endpoints PROFESOR configurados: ✅');
+    console.log('   - Módulo 5 (Mantenimiento) eliminado: ✅');
 }
 
 // Export para módulos ES6
@@ -939,18 +896,9 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = APP_CONFIG;
 }
 
-// Export para ES modules
-if (typeof exports !== 'undefined') {
-    exports.default = APP_CONFIG;
-    exports.APP_CONFIG = APP_CONFIG;
-}
-
-// Log de inicialización en desarrollo
+// Log de inicialización
 if (APP_ENV.DEBUG && typeof console !== 'undefined') {
-    console.log(`🚀 ${APP_ENV.APP_NAME} v${APP_ENV.VERSION} - Configuración cargada en modo: ${APP_ENV.MODE}`);
-    console.log('📁 Módulos configurados: Usuarios, Lecciones, Aprendizaje, Desempeño, Mantenimiento');
-    console.log('✅ Endpoints de CURSOS y ESTUDIANTE agregados correctamente');
-    console.log('🎯 Variables globales disponibles:');
-    console.log('   - API_CONFIG, STORAGE_CONFIG, ROLES_CONFIG, VALIDATION_CONFIG');
-    console.log('   - APP_CONFIG (completo)');
+    console.log(`🚀 ${APP_ENV.APP_NAME} v${APP_ENV.VERSION} - Configuración cargada`);
+    console.log('📁 Módulos activos: Usuarios, Lecciones, Aprendizaje, Desempeño');
+    console.log('🎯 Endpoints de PROFESOR configurados para UC-13, UC-14, UC-15');
 }
