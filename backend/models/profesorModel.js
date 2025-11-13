@@ -2,6 +2,8 @@
    SPEAKLEXI - MODELO DE PROFESOR
    Módulo 4: Dashboard y Gestión de Estudiantes
    
+   CORREGIDO: pool.execute() → database.query()
+   
    Funciones:
    - Dashboard del profesor
    - Gestión de estudiantes asignados
@@ -9,7 +11,7 @@
    - Alertas y notificaciones
    ============================================ */
 
-const pool = require('../config/database');
+const database = require('../config/database'); // ✅ CORREGIDO: importar database completo
 
 class ProfesorModel {
     
@@ -33,7 +35,7 @@ class ProfesorModel {
             LIMIT 1
         `;
         
-        const [rows] = await pool.execute(query, [profesorId]);
+        const [rows] = await database.pool.execute(query, [profesorId]); // ✅ CORREGIDO
         return rows[0] || null;
     }
     
@@ -44,13 +46,16 @@ class ProfesorModel {
         const query = `
             SELECT 
                 pe.usuario_id as id,
+                u.nombre,
+                u.primer_apellido,
                 CONCAT(u.nombre, ' ', u.primer_apellido) as nombre_completo,
                 u.correo,
                 pe.nivel_actual,
                 pe.idioma_aprendizaje,
                 pe.total_xp,
                 COALESCE(ee.lecciones_completadas, 0) as lecciones_completadas,
-                COALESCE(ee.promedio_general, 0) as promedio_general,
+                COALESCE(ee.lecciones_en_progreso, 0) as lecciones_iniciadas,
+                COALESCE(ee.promedio_general, 0) as promedio_progreso,
                 COALESCE(ee.tiempo_total_estudio, 0) as tiempo_total_estudio,
                 pa.curso_id,
                 c.nombre as curso_nombre
@@ -68,7 +73,7 @@ class ProfesorModel {
             ORDER BY pe.total_xp DESC
         `;
         
-        const [rows] = await pool.execute(query, [profesorId]);
+        const [rows] = await database.pool.execute(query, [profesorId]); // ✅ CORREGIDO
         return rows;
     }
     
@@ -82,7 +87,8 @@ class ProfesorModel {
                 AVG(COALESCE(ee.promedio_general, 0)) as promedio_clase,
                 SUM(COALESCE(ee.lecciones_completadas, 0)) as total_lecciones_completadas,
                 SUM(COALESCE(ee.tiempo_total_estudio, 0)) as tiempo_total_clase,
-                COUNT(DISTINCT CASE WHEN ee.lecciones_completadas > 0 THEN pe.usuario_id END) as estudiantes_activos
+                COUNT(DISTINCT CASE WHEN ee.lecciones_completadas > 0 THEN pe.usuario_id END) as estudiantes_activos,
+                AVG(COALESCE(pe.total_xp, 0)) as promedio_xp
             FROM profesor_asignaciones pa
             INNER JOIN perfil_estudiantes pe 
                 ON pe.nivel_actual = pa.nivel 
@@ -95,7 +101,7 @@ class ProfesorModel {
                 AND u.estado_cuenta = 'activo'
         `;
         
-        const [rows] = await pool.execute(query, [profesorId]);
+        const [rows] = await database.pool.execute(query, [profesorId]); // ✅ CORREGIDO
         return rows[0];
     }
     
@@ -103,9 +109,15 @@ class ProfesorModel {
      * Obtener top estudiantes por XP
      */
     static async obtenerTopEstudiantes(profesorId, limit = 5) {
+        // ✅ CORREGIDO: LIMIT no acepta placeholders en MySQL prepared statements
+        // Sanitizamos el valor convirtiéndolo a entero para seguridad
+        const limitSafe = parseInt(limit) || 5;
+        
         const query = `
             SELECT 
                 pe.usuario_id as id,
+                u.nombre,
+                u.primer_apellido,
                 CONCAT(u.nombre, ' ', u.primer_apellido) as nombre_completo,
                 pe.total_xp,
                 COALESCE(ee.lecciones_completadas, 0) as lecciones_completadas,
@@ -122,10 +134,10 @@ class ProfesorModel {
                 AND u.rol = 'alumno'
                 AND u.estado_cuenta = 'activo'
             ORDER BY pe.total_xp DESC
-            LIMIT ?
+            LIMIT ${limitSafe}
         `;
         
-        const [rows] = await pool.execute(query, [profesorId, limit]);
+        const [rows] = await database.pool.execute(query, [profesorId]); // Solo profesorId
         return rows;
     }
     
@@ -159,7 +171,7 @@ class ProfesorModel {
         
         query += ' ORDER BY a.creado_en DESC';
         
-        const [rows] = await pool.execute(query, [profesorId]);
+        const [rows] = await database.pool.execute(query, [profesorId]); // ✅ CORREGIDO
         return rows;
     }
     
@@ -202,7 +214,7 @@ class ProfesorModel {
             LIMIT 1
         `;
         
-        const [rows] = await pool.execute(query, [profesorId, estudianteId]);
+        const [rows] = await database.pool.execute(query, [profesorId, estudianteId]); // ✅ CORREGIDO
         return rows[0] || null;
     }
     
@@ -232,7 +244,7 @@ class ProfesorModel {
             ORDER BY l.orden ASC
         `;
         
-        const [rows] = await pool.execute(query, [profesorId]);
+        const [rows] = await database.pool.execute(query, [profesorId]); // ✅ CORREGIDO
         return rows;
     }
     
@@ -251,7 +263,7 @@ class ProfesorModel {
                 AND pa.activo = TRUE
         `;
         
-        const [rows] = await pool.execute(query, [profesorId, estudianteId]);
+        const [rows] = await database.pool.execute(query, [profesorId, estudianteId]); // ✅ CORREGIDO
         return rows[0].tiene_acceso > 0;
     }
     
@@ -265,7 +277,7 @@ class ProfesorModel {
             WHERE id = ? AND profesor_id = ?
         `;
         
-        await pool.execute(query, [alertaId, profesorId]);
+        await database.pool.execute(query, [alertaId, profesorId]); // ✅ CORREGIDO
     }
 }
 

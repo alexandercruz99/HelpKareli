@@ -2,6 +2,8 @@
    SPEAKLEXI - MODELO DE PLANIFICACIÓN
    Módulo 4: Planes de Estudio Personalizados
    
+   CORREGIDO: pool.execute() → database.pool.execute()
+   
    Funciones:
    - Crear planes de estudio personalizados
    - Gestionar planes por profesor y estudiante
@@ -9,7 +11,7 @@
    - Sugerencias de lecciones y ejercicios
    ============================================ */
 
-const pool = require('../config/database');
+const database = require('../config/database'); // ✅ CORREGIDO
 
 class PlanificacionModel {
     
@@ -25,7 +27,7 @@ class PlanificacionModel {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         
-        const [result] = await pool.execute(query, [
+        const [result] = await database.pool.execute(query, [
             data.profesor_id,
             data.estudiante_id,
             data.curso_id,
@@ -70,7 +72,7 @@ class PlanificacionModel {
             ORDER BY p.creado_en DESC
         `;
         
-        const [rows] = await pool.execute(query, [profesorId]);
+        const [rows] = await database.pool.execute(query, [profesorId]);
         
         // Parsear JSON fields
         return rows.map(plan => ({
@@ -109,7 +111,7 @@ class PlanificacionModel {
             ORDER BY p.creado_en DESC
         `;
         
-        const [rows] = await pool.execute(query, [estudianteId]);
+        const [rows] = await database.pool.execute(query, [estudianteId]);
         
         // Parsear JSON fields
         return rows.map(plan => ({
@@ -136,7 +138,7 @@ class PlanificacionModel {
             WHERE id = ?
         `;
         
-        await pool.execute(query, [nuevoEstado, fechaCompletado, planId]);
+        await database.pool.execute(query, [nuevoEstado, fechaCompletado, planId]);
     }
     
     /**
@@ -160,7 +162,7 @@ class PlanificacionModel {
             ORDER BY l.orden ASC
         `;
         
-        const [rows] = await pool.execute(query, [planId]);
+        const [rows] = await database.pool.execute(query, [planId]);
         return rows;
     }
     
@@ -181,7 +183,7 @@ class PlanificacionModel {
             WHERE profesor_id = ?
         `;
         
-        const [rows] = await pool.execute(query, [profesorId]);
+        const [rows] = await database.pool.execute(query, [profesorId]);
         return rows[0];
     }
     
@@ -210,7 +212,7 @@ class PlanificacionModel {
             LIMIT 10
         `;
         
-        const [rows] = await pool.execute(query, [profesorId]);
+        const [rows] = await database.pool.execute(query, [profesorId]);
         return rows;
     }
 }

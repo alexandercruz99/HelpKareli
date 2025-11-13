@@ -2,6 +2,8 @@
    SPEAKLEXI - MODELO DE RETROALIMENTACIÓN
    Módulo 4: Sistema de Retroalimentación Profesor-Estudiante
    
+   CORREGIDO: pool.execute() → database.pool.execute()
+   
    Funciones:
    - Enviar retroalimentación de profesor a estudiante
    - Gestionar mensajes enviados y recibidos
@@ -9,7 +11,7 @@
    - Sistema de tipos (felicitación, mejora, alerta)
    ============================================ */
 
-const pool = require('../config/database');
+const database = require('../config/database'); // ✅ CORREGIDO
 
 class RetroalimentacionModel {
     
@@ -23,7 +25,7 @@ class RetroalimentacionModel {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         
-        const [result] = await pool.execute(query, [
+        const [result] = await database.pool.execute(query, [
             data.profesor_id,
             data.estudiante_id,
             data.curso_id,
@@ -81,7 +83,7 @@ class RetroalimentacionModel {
         
         query += ' ORDER BY r.creado_en DESC';
         
-        const [rows] = await pool.execute(query, params);
+        const [rows] = await database.pool.execute(query, params);
         return rows;
     }
     
@@ -109,7 +111,7 @@ class RetroalimentacionModel {
             ORDER BY r.creado_en DESC
         `;
         
-        const [rows] = await pool.execute(query, [estudianteId]);
+        const [rows] = await database.pool.execute(query, [estudianteId]);
         return rows;
     }
     
@@ -123,7 +125,7 @@ class RetroalimentacionModel {
             WHERE id = ? AND estudiante_id = ?
         `;
         
-        await pool.execute(query, [retroalimentacionId, estudianteId]);
+        await database.pool.execute(query, [retroalimentacionId, estudianteId]);
     }
     
     /**
@@ -136,7 +138,7 @@ class RetroalimentacionModel {
             WHERE estudiante_id = ? AND leido = FALSE
         `;
         
-        const [rows] = await pool.execute(query, [estudianteId]);
+        const [rows] = await database.pool.execute(query, [estudianteId]);
         return rows[0].total;
     }
     
@@ -157,7 +159,7 @@ class RetroalimentacionModel {
             WHERE profesor_id = ?
         `;
         
-        const [rows] = await pool.execute(query, [profesorId]);
+        const [rows] = await database.pool.execute(query, [profesorId]);
         return rows[0];
     }
     
@@ -174,7 +176,7 @@ class RetroalimentacionModel {
             AND pa.activo = TRUE
         `;
         
-        const [rows] = await pool.execute(query, [profesorId, estudianteId]);
+        const [rows] = await database.pool.execute(query, [profesorId, estudianteId]);
         return rows[0].tiene_permiso > 0;
     }
 }

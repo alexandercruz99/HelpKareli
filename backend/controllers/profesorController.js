@@ -2,6 +2,8 @@
    SPEAKLEXI - CONTROLADOR DE PROFESOR
    Módulo 4: Endpoints para Dashboard y Gestión
    
+   CORREGIDO: req.usuario → req.user
+   
    Endpoints:
    - Dashboard principal
    - Gestión de estudiantes
@@ -21,7 +23,7 @@ class ProfesorController {
      */
     static async obtenerDashboard(req, res) {
         try {
-            const profesorId = req.usuario.id;
+            const profesorId = req.user.id; // ✅ CORREGIDO: req.user en lugar de req.usuario
             
             // Obtener información del profesor
             const infoProfesor = await ProfesorModel.obtenerInfoProfesor(profesorId);
@@ -57,10 +59,10 @@ class ProfesorController {
                         promedio_clase: Math.round(estadisticas.promedio_clase || 0),
                         total_lecciones_completadas: estadisticas.total_lecciones_completadas || 0,
                         tiempo_total_horas: Math.round((estadisticas.tiempo_total_clase || 0) / 60),
-                        estudiantes_activos: estadisticas.estudiantes_activos || 0
+                        estudiantes_activos: estadisticas.estudiantes_activos || 0,
+                        promedio_xp: estadisticas.promedio_xp || 0
                     },
-                    top_estudiantes: topEstudiantes,
-                    alertas_pendientes: alertas.length,
+                    estudiantes_recientes: topEstudiantes,
                     alertas: alertas.slice(0, 3), // Solo primeras 3
                     retroalimentacion: statsRetroalimentacion,
                     planificacion: statsPlanificacion
@@ -82,7 +84,7 @@ class ProfesorController {
      */
     static async obtenerEstudiantes(req, res) {
         try {
-            const profesorId = req.usuario.id;
+            const profesorId = req.user.id; // ✅ CORREGIDO
             const estudiantes = await ProfesorModel.obtenerEstudiantes(profesorId);
             
             res.json({
@@ -105,7 +107,7 @@ class ProfesorController {
      */
     static async obtenerEstadisticasDetalladas(req, res) {
         try {
-            const profesorId = req.usuario.id;
+            const profesorId = req.user.id; // ✅ CORREGIDO
             const { estudiante_id } = req.query;
             
             // Si se solicita un estudiante específico
@@ -164,7 +166,7 @@ class ProfesorController {
      */
     static async enviarRetroalimentacion(req, res) {
         try {
-            const profesorId = req.usuario.id;
+            const profesorId = req.user.id; // ✅ CORREGIDO
             const { estudiante_id, asunto, mensaje, tipo, leccion_id } = req.body;
             
             // Validaciones
@@ -219,7 +221,7 @@ class ProfesorController {
      */
     static async obtenerRetroalimentaciones(req, res) {
         try {
-            const profesorId = req.usuario.id;
+            const profesorId = req.user.id; // ✅ CORREGIDO
             const { estudiante_id, leido } = req.query;
             
             const filtros = {};
@@ -248,7 +250,7 @@ class ProfesorController {
      */
     static async crearPlan(req, res) {
         try {
-            const profesorId = req.usuario.id;
+            const profesorId = req.user.id; // ✅ CORREGIDO
             const { 
                 estudiante_id, 
                 titulo, 
@@ -317,7 +319,7 @@ class ProfesorController {
      */
     static async obtenerPlanes(req, res) {
         try {
-            const profesorId = req.usuario.id;
+            const profesorId = req.user.id; // ✅ CORREGIDO
             const planes = await PlanificacionModel.obtenerPorProfesor(profesorId);
             
             res.json({
@@ -340,7 +342,7 @@ class ProfesorController {
      */
     static async obtenerAlertas(req, res) {
         try {
-            const profesorId = req.usuario.id;
+            const profesorId = req.user.id; // ✅ CORREGIDO
             const { solo_no_revisadas } = req.query;
             
             const alertas = await ProfesorModel.obtenerAlertas(profesorId, solo_no_revisadas !== 'false');
@@ -365,7 +367,7 @@ class ProfesorController {
      */
     static async marcarAlertaRevisada(req, res) {
         try {
-            const profesorId = req.usuario.id;
+            const profesorId = req.user.id; // ✅ CORREGIDO
             const { id } = req.params;
             
             await ProfesorModel.marcarAlertaRevisada(id, profesorId);
@@ -390,7 +392,7 @@ class ProfesorController {
      */
     static async obtenerLecciones(req, res) {
         try {
-            const profesorId = req.usuario.id;
+            const profesorId = req.user.id; // ✅ CORREGIDO
             const lecciones = await ProfesorModel.obtenerLeccionesCurso(profesorId);
             
             res.json({

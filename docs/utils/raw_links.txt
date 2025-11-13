@@ -1,6 +1,6 @@
-# RAW LINKS — Actualizado 2025-11-12 15:22:35
+# RAW LINKS — Actualizado 2025-11-12 20:13:28
 # Repositorio: sTr4yDev/speakLexi2.0
-# Commit: 24b50b73e1a8cc2f8bc3291d8bd3ab73345069d4
+# Commit: c901599dff71cbe5a0e3afff4b8d1cd356da48bb
 
 ========================= BACKEND LINKS =========================
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/config/database.js
@@ -12,6 +12,7 @@ https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/models/gami
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/models/lecciones.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/models/multimedia.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/models/planificacionModel.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/models/profesorModel.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/models/progresoModel.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/models/retroalimentacionModel.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/models/usuario.js
@@ -19,10 +20,12 @@ https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/routes/auth
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/routes/cursosRoutes.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/routes/ejercicioRoutes.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/routes/estadisticasRoutes.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/routes/estudianteRoutes.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/routes/gamificacionRoutes.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/routes/leccionRoutes.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/routes/multimediaRoutes.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/routes/planificacionRoutes.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/routes/profesorRoutes.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/routes/progresoRoutes.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/routes/retroalimentacionRoutes.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/routes/testingRoutes.js
@@ -49,6 +52,7 @@ https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/controllers
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/controllers/leccionController.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/controllers/multimediaController.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/controllers/planificacionController.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/controllers/profesorController.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/controllers/progresoController.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/controllers/retroalimentacionController.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/middleware/auth.js
