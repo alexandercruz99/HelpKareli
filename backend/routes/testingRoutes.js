@@ -437,6 +437,228 @@ router.post('/generar-progreso', async (req, res) => {
 });
 
 // ============================================
+// ENDPOINT: Obtener Profesores con Asignaciones
+// ============================================
+router.get('/profesores', async (req, res) => {
+    try {
+        const [profesores] = await db.pool.execute(`
+            SELECT 
+                u.id,
+                u.nombre,
+                u.primer_apellido,
+                pa.nivel,
+                pa.idioma,
+                pa.curso_id,
+                c.nombre as curso_nombre
+            FROM usuarios u
+            INNER JOIN profesor_asignaciones pa ON pa.profesor_id = u.id
+            INNER JOIN cursos c ON c.id = pa.curso_id
+            WHERE u.rol = 'profesor' AND pa.activo = TRUE
+            ORDER BY u.nombre, u.primer_apellido
+        `);
+
+        res.json({
+            success: true,
+            profesores: profesores
+        });
+    } catch (error) {
+        console.error('Error obteniendo profesores:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// ============================================
+// ENDPOINT: Generar Estudiantes Asignados a Profesor
+// ============================================
+router.post('/generar-estudiantes-asignados', async (req, res) => {
+    const connection = await db.pool.getConnection();
+    
+    try {
+        await connection.beginTransaction();
+        
+        const { 
+            profesor_id, 
+            cantidad, 
+            nivel, 
+            idioma, 
+            xp_min = 0, 
+            xp_max = 1000,
+            incluir_progreso = false,
+            curso_id
+        } = req.body;
+
+        // Validaciones
+        if (!profesor_id || !cantidad || !nivel || !idioma) {
+            return res.status(400).json({
+                success: false,
+                message: 'Faltan parámetros requeridos: profesor_id, cantidad, nivel, idioma'
+            });
+        }
+
+        if (cantidad > 50) {
+            return res.status(400).json({
+                success: false,
+                message: 'Máximo 50 estudiantes por generación'
+            });
+        }
+
+        // Verificar que el profesor existe
+        const [profesor] = await connection.execute(
+            'SELECT id FROM usuarios WHERE id = ? AND rol = "profesor"',
+            [profesor_id]
+        );
+
+        if (profesor.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Profesor no encontrado'
+            });
+        }
+
+        const estudiantesGenerados = [];
+        let xpTotal = 0;
+        let conProgreso = 0;
+
+        // Datos realistas para estudiantes
+        const nombresEstudiantes = [
+            'Ana', 'Carlos', 'María', 'Luis', 'Sofia', 'Pedro', 'Laura', 'Miguel',
+            'Carmen', 'José', 'Isabel', 'Antonio', 'Rosa', 'Francisco', 'Patricia',
+            'Manuel', 'Elena', 'David', 'Lucía', 'Javier', 'Marta', 'Ángel', 'Paula'
+        ];
+
+        const apellidos = [
+            'García', 'Rodríguez', 'Martínez', 'López', 'González', 'Hernández',
+            'Pérez', 'Sánchez', 'Ramírez', 'Torres', 'Flores', 'Rivera', 'Gómez'
+        ];
+
+        // Generar estudiantes
+        for (let i = 0; i < cantidad; i++) {
+            const timestamp = Date.now();
+            const random = Math.floor(Math.random() * 1000);
+            const nombre = nombresEstudiantes[Math.floor(Math.random() * nombresEstudiantes.length)];
+            const apellido1 = apellidos[Math.floor(Math.random() * apellidos.length)];
+            const apellido2 = apellidos[Math.floor(Math.random() * apellidos.length)];
+            const email = `estudiante.asignado${timestamp}${i}${random}@test.speaklexi.com`;
+            const xp = Math.floor(Math.random() * (xp_max - xp_min + 1)) + xp_min;
+
+            // Crear usuario
+            const queryUsuario = `
+                INSERT INTO usuarios (nombre, primer_apellido, segundo_apellido, correo, contrasena_hash, rol, estado_cuenta, correo_verificado)
+                VALUES (?, ?, ?, ?, ?, 'alumno', 'activo', TRUE)
+            `;
+
+            const [resultUsuario] = await connection.execute(queryUsuario, [
+                nombre,
+                apellido1,
+                apellido2,
+                email,
+                '$2b$12$avFdFoqt1sRjFxCWYKieuuzrQ8HJBH2/ZVZeoZEK6wwg5PnfsxFmG' // Test123!
+            ]);
+
+            const usuarioId = resultUsuario.insertId;
+
+            // Crear perfil usuario
+            await connection.execute(`
+                INSERT INTO perfil_usuarios (usuario_id, nombre_completo, foto_perfil)
+                VALUES (?, ?, 'default-avatar.png')
+            `, [usuarioId, `${nombre} ${apellido1} ${apellido2}`]);
+
+            // Crear perfil estudiante
+            const queryPerfil = `
+                INSERT INTO perfil_estudiantes (usuario_id, nivel_actual, idioma_aprendizaje, total_xp)
+                VALUES (?, ?, ?, ?)
+            `;
+
+            await connection.execute(queryPerfil, [usuarioId, nivel, idioma, xp]);
+
+            // Crear estadísticas iniciales
+            await connection.execute(
+                'INSERT INTO estadisticas_estudiante (usuario_id) VALUES (?)',
+                [usuarioId]
+            );
+
+            // Asignar estudiante al profesor
+            await connection.execute(`
+                INSERT INTO profesor_estudiantes (profesor_id, estudiante_id, nivel_asignado, idioma_asignado, activo)
+                VALUES (?, ?, ?, ?, TRUE)
+            `, [profesor_id, usuarioId, nivel, idioma]);
+
+            let progresoGenerado = false;
+
+            // Generar progreso si se solicita
+            if (incluir_progreso && curso_id) {
+                try {
+                    // Obtener lecciones del curso
+                    const [lecciones] = await connection.execute(
+                        'SELECT id FROM lecciones WHERE curso_id = ? AND estado = "activa" LIMIT 5',
+                        [curso_id]
+                    );
+
+                    if (lecciones.length > 0) {
+                        const leccionesAGenerar = Math.min(3, lecciones.length);
+                        
+                        for (let j = 0; j < leccionesAGenerar; j++) {
+                            const leccion = lecciones[j];
+                            const progreso = Math.floor(Math.random() * 100);
+                            const completada = progreso === 100;
+
+                            await connection.execute(`
+                                INSERT INTO progreso_lecciones (usuario_id, leccion_id, progreso, completada, tiempo_total_segundos)
+                                VALUES (?, ?, ?, ?, ?)
+                            `, [usuarioId, leccion.id, progreso, completada, Math.floor(Math.random() * 3600)]);
+                        }
+
+                        progresoGenerado = true;
+                        conProgreso++;
+                    }
+                } catch (error) {
+                    console.log(`⚠️ No se pudo generar progreso para ${email}:`, error.message);
+                }
+            }
+
+            xpTotal += xp;
+            estudiantesGenerados.push({
+                id: usuarioId,
+                nombre: `${nombre} ${apellido1} ${apellido2}`,
+                email: email,
+                nivel: nivel,
+                idioma: idioma,
+                xp: xp,
+                progreso_generado: progresoGenerado
+            });
+        }
+
+        await connection.commit();
+
+        res.json({
+            success: true,
+            message: `${cantidad} estudiantes generados y asignados correctamente al profesor`,
+            total_generados: cantidad,
+            con_progreso: conProgreso,
+            xp_total: xpTotal,
+            estudiantes: estudiantesGenerados,
+            profesor_id: profesor_id,
+            nivel: nivel,
+            idioma: idioma
+        });
+
+    } catch (error) {
+        await connection.rollback();
+        console.error('Error generando estudiantes asignados:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error generando estudiantes',
+            error: error.message
+        });
+    } finally {
+        connection.release();
+    }
+});
+
+// ============================================
 // ENDPOINT: Estadísticas de Datos de Prueba
 // ============================================
 router.get('/estadisticas', async (req, res) => {

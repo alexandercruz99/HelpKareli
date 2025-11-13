@@ -6,7 +6,8 @@
 
 class EstadisticasProfesor {
     constructor() {
-        this.API_URL = window.APP_CONFIG?.API?.BASE_URL || 'http://localhost:5000/api';
+        // ✅ CORREGIDO: BASE_URL → API_URL (Línea 18)
+        this.API_URL = window.APP_CONFIG?.API?.API_URL || 'http://localhost:5000/api';
         this.token = localStorage.getItem('token');
         this.estado = {
             estadisticas: null,

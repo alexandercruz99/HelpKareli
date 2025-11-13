@@ -3,11 +3,12 @@
    Módulo 4: Endpoints para Dashboard y Gestión
    
    CORREGIDO: req.usuario → req.user
+   ACTUALIZADO: Formato de estadísticas detalladas
    
    Endpoints:
    - Dashboard principal
    - Gestión de estudiantes
-   - Estadísticas detalladas
+   - Estadísticas detalladas (FORMATO CORREGIDO)
    - Alertas y notificaciones
    ============================================ */
 
@@ -102,7 +103,7 @@ class ProfesorController {
     }
     
     /**
-     * Obtener estadísticas detalladas
+     * Obtener estadísticas detalladas - FORMATO CORREGIDO
      * GET /api/profesor/estadisticas
      */
     static async obtenerEstadisticasDetalladas(req, res) {
@@ -137,18 +138,49 @@ class ProfesorController {
                 });
             }
             
-            // Estadísticas generales
-            const estudiantes = await ProfesorModel.obtenerEstudiantes(profesorId);
+            // ✅ FORMATO CORREGIDO: Estadísticas generales con estructura específica
             const estadisticas = await ProfesorModel.obtenerEstadisticasGenerales(profesorId);
-            const lecciones = await ProfesorModel.obtenerLeccionesCurso(profesorId);
+            const estudiantes = await ProfesorModel.obtenerEstudiantes(profesorId);
+            const topEstudiantes = await ProfesorModel.obtenerTopEstudiantes(profesorId, 5);
             
+            // Calcular tasa de completación si no viene del modelo
+            const totalLeccionesPosibles = estudiantes.length * 10; // Asumiendo 10 lecciones por estudiante
+            const tasaCompletacion = totalLeccionesPosibles > 0 
+                ? Math.round((estadisticas.total_lecciones_completadas / totalLeccionesPosibles) * 100)
+                : 0;
+
+            // Formatear respuesta según estructura requerida
+            const respuesta = {
+                resumen: {
+                    total_estudiantes: estadisticas.total_estudiantes || 0,
+                    total_lecciones_completadas: estadisticas.total_lecciones_completadas || 0,
+                    promedio_clase: Math.round(estadisticas.promedio_clase || estadisticas.promedio_xp || 0),
+                    tasa_completacion: estadisticas.tasa_completacion || tasaCompletacion,
+                    tiempo_total_horas: Math.round((estadisticas.tiempo_total_clase || 0) / 60) || 0,
+                    estudiantes_activos: estadisticas.estudiantes_activos || 0
+                },
+                estudiantes: estudiantes.map(est => ({
+                    estudiante_id: est.id,
+                    estudiante_nombre: est.nombre_completo || `${est.nombre} ${est.primer_apellido}`,
+                    nivel_actual: est.nivel_actual,
+                    total_xp: est.total_xp,
+                    lecciones_completadas: est.lecciones_completadas || 0,
+                    racha_actual: est.racha_actual || 0
+                })),
+                top_estudiantes: topEstudiantes.map(est => ({
+                    estudiante_id: est.id,
+                    estudiante_nombre: est.nombre_completo || `${est.nombre} ${est.primer_apellido}`,
+                    nivel_actual: est.nivel_actual,
+                    total_xp: est.total_xp,
+                    lecciones_completadas: est.lecciones_completadas || 0,
+                    racha_actual: est.racha_actual || 0
+                })),
+                temas_dificultad: await ProfesorModel.obtenerTemasDificultad(profesorId) || []
+            };
+
             res.json({
                 success: true,
-                data: {
-                    resumen: estadisticas,
-                    estudiantes: estudiantes,
-                    lecciones: lecciones
-                }
+                data: respuesta
             });
         } catch (error) {
             console.error('Error en obtenerEstadisticasDetalladas:', error);
