@@ -2,7 +2,7 @@
    SPEAKLEXI - MODELO DE PROFESOR
    Módulo 4: Dashboard y Gestión de Estudiantes
    
-   CORREGIDO: pool.execute() → database.query()
+   CORREGIDO v2: Usar tabla profesor_estudiantes
    
    Funciones:
    - Dashboard del profesor
@@ -11,7 +11,7 @@
    - Alertas y notificaciones
    ============================================ */
 
-const database = require('../config/database'); // ✅ CORREGIDO: importar database completo
+const database = require('../config/database');
 
 class ProfesorModel {
     
@@ -35,12 +35,13 @@ class ProfesorModel {
             LIMIT 1
         `;
         
-        const [rows] = await database.pool.execute(query, [profesorId]); // ✅ CORREGIDO
+        const [rows] = await database.pool.execute(query, [profesorId]);
         return rows[0] || null;
     }
     
     /**
      * Obtener estudiantes asignados al profesor
+     * ✅ CORREGIDO v2: Calcular estadísticas desde progreso_lecciones
      */
     static async obtenerEstudiantes(profesorId) {
         const query = `
@@ -53,64 +54,83 @@ class ProfesorModel {
                 pe.nivel_actual,
                 pe.idioma_aprendizaje,
                 pe.total_xp,
-                COALESCE(ee.lecciones_completadas, 0) as lecciones_completadas,
-                COALESCE(ee.lecciones_en_progreso, 0) as lecciones_iniciadas,
-                COALESCE(ee.promedio_general, 0) as promedio_progreso,
-                COALESCE(ee.tiempo_total_estudio, 0) as tiempo_total_estudio,
+                
+                -- Calcular lecciones desde progreso_lecciones
+                (SELECT COUNT(*) FROM progreso_lecciones pl 
+                 WHERE pl.usuario_id = pe.usuario_id AND pl.completada = TRUE) as lecciones_completadas,
+                
+                (SELECT COUNT(*) FROM progreso_lecciones pl 
+                 WHERE pl.usuario_id = pe.usuario_id) as lecciones_iniciadas,
+                
+                -- Calcular promedio de progreso
+                (SELECT AVG(progreso) FROM progreso_lecciones pl 
+                 WHERE pl.usuario_id = pe.usuario_id) as promedio_progreso,
+                
+                -- Calcular tiempo total en segundos
+                (SELECT SUM(tiempo_total_segundos) FROM progreso_lecciones pl 
+                 WHERE pl.usuario_id = pe.usuario_id) as tiempo_total_estudio,
+                
                 pa.curso_id,
                 c.nombre as curso_nombre
-            FROM profesor_asignaciones pa
-            INNER JOIN perfil_estudiantes pe 
-                ON pe.nivel_actual = pa.nivel 
-                AND pe.idioma_aprendizaje = pa.idioma
+            FROM profesor_estudiantes pes
+            INNER JOIN perfil_estudiantes pe ON pe.usuario_id = pes.estudiante_id
             INNER JOIN usuarios u ON u.id = pe.usuario_id
+            INNER JOIN profesor_asignaciones pa ON pa.profesor_id = pes.profesor_id
             INNER JOIN cursos c ON c.id = pa.curso_id
-            LEFT JOIN estadisticas_estudiante ee ON ee.usuario_id = pe.usuario_id
-            WHERE pa.profesor_id = ? 
-                AND pa.activo = TRUE 
+            WHERE pes.profesor_id = ? 
+                AND pes.activo = TRUE 
                 AND u.rol = 'alumno'
                 AND u.estado_cuenta = 'activo'
             ORDER BY pe.total_xp DESC
         `;
         
-        const [rows] = await database.pool.execute(query, [profesorId]); // ✅ CORREGIDO
+        const [rows] = await database.pool.execute(query, [profesorId]);
         return rows;
     }
     
     /**
      * Obtener estadísticas generales de la clase
+     * ✅ CORREGIDO v2: Calcular desde progreso_lecciones en tiempo real
      */
     static async obtenerEstadisticasGenerales(profesorId) {
         const query = `
             SELECT 
                 COUNT(DISTINCT pe.usuario_id) as total_estudiantes,
-                AVG(COALESCE(ee.promedio_general, 0)) as promedio_clase,
-                SUM(COALESCE(ee.lecciones_completadas, 0)) as total_lecciones_completadas,
-                SUM(COALESCE(ee.tiempo_total_estudio, 0)) as tiempo_total_clase,
-                COUNT(DISTINCT CASE WHEN ee.lecciones_completadas > 0 THEN pe.usuario_id END) as estudiantes_activos,
+                
+                -- Promedio de progreso de todas las lecciones
+                AVG(COALESCE(pl.progreso, 0)) as promedio_clase,
+                
+                -- Total de lecciones completadas por todos los estudiantes
+                COUNT(CASE WHEN pl.completada = TRUE THEN 1 END) as total_lecciones_completadas,
+                
+                -- Tiempo total en minutos
+                SUM(COALESCE(pl.tiempo_total_segundos, 0)) / 60 as tiempo_total_clase,
+                
+                -- Estudiantes que han completado al menos 1 lección
+                COUNT(DISTINCT CASE WHEN pl.completada = TRUE THEN pe.usuario_id END) as estudiantes_activos,
+                
+                -- Promedio de XP
                 AVG(COALESCE(pe.total_xp, 0)) as promedio_xp
-            FROM profesor_asignaciones pa
-            INNER JOIN perfil_estudiantes pe 
-                ON pe.nivel_actual = pa.nivel 
-                AND pe.idioma_aprendizaje = pa.idioma
+                
+            FROM profesor_estudiantes pes
+            INNER JOIN perfil_estudiantes pe ON pe.usuario_id = pes.estudiante_id
             INNER JOIN usuarios u ON u.id = pe.usuario_id
-            LEFT JOIN estadisticas_estudiante ee ON ee.usuario_id = pe.usuario_id
-            WHERE pa.profesor_id = ? 
-                AND pa.activo = TRUE
+            LEFT JOIN progreso_lecciones pl ON pl.usuario_id = pe.usuario_id
+            WHERE pes.profesor_id = ? 
+                AND pes.activo = TRUE
                 AND u.rol = 'alumno'
                 AND u.estado_cuenta = 'activo'
         `;
         
-        const [rows] = await database.pool.execute(query, [profesorId]); // ✅ CORREGIDO
+        const [rows] = await database.pool.execute(query, [profesorId]);
         return rows[0];
     }
     
     /**
      * Obtener top estudiantes por XP
+     * ✅ CORREGIDO v2: Calcular estadísticas desde progreso_lecciones
      */
     static async obtenerTopEstudiantes(profesorId, limit = 5) {
-        // ✅ CORREGIDO: LIMIT no acepta placeholders en MySQL prepared statements
-        // Sanitizamos el valor convirtiéndolo a entero para seguridad
         const limitSafe = parseInt(limit) || 5;
         
         const query = `
@@ -120,24 +140,29 @@ class ProfesorModel {
                 u.primer_apellido,
                 CONCAT(u.nombre, ' ', u.primer_apellido) as nombre_completo,
                 pe.total_xp,
-                COALESCE(ee.lecciones_completadas, 0) as lecciones_completadas,
-                COALESCE(ee.promedio_general, 0) as promedio_general,
-                COALESCE(ee.tiempo_total_estudio, 0) as tiempo_total_estudio
-            FROM profesor_asignaciones pa
-            INNER JOIN perfil_estudiantes pe 
-                ON pe.nivel_actual = pa.nivel 
-                AND pe.idioma_aprendizaje = pa.idioma
+                
+                -- Calcular desde progreso_lecciones
+                (SELECT COUNT(*) FROM progreso_lecciones pl 
+                 WHERE pl.usuario_id = pe.usuario_id AND pl.completada = TRUE) as lecciones_completadas,
+                
+                (SELECT AVG(progreso) FROM progreso_lecciones pl 
+                 WHERE pl.usuario_id = pe.usuario_id) as promedio_general,
+                
+                (SELECT SUM(tiempo_total_segundos) FROM progreso_lecciones pl 
+                 WHERE pl.usuario_id = pe.usuario_id) as tiempo_total_estudio
+                
+            FROM profesor_estudiantes pes
+            INNER JOIN perfil_estudiantes pe ON pe.usuario_id = pes.estudiante_id
             INNER JOIN usuarios u ON u.id = pe.usuario_id
-            LEFT JOIN estadisticas_estudiante ee ON ee.usuario_id = pe.usuario_id
-            WHERE pa.profesor_id = ? 
-                AND pa.activo = TRUE
+            WHERE pes.profesor_id = ? 
+                AND pes.activo = TRUE
                 AND u.rol = 'alumno'
                 AND u.estado_cuenta = 'activo'
             ORDER BY pe.total_xp DESC
             LIMIT ${limitSafe}
         `;
         
-        const [rows] = await database.pool.execute(query, [profesorId]); // Solo profesorId
+        const [rows] = await database.pool.execute(query, [profesorId]);
         return rows;
     }
     
@@ -171,12 +196,13 @@ class ProfesorModel {
         
         query += ' ORDER BY a.creado_en DESC';
         
-        const [rows] = await database.pool.execute(query, [profesorId]); // ✅ CORREGIDO
+        const [rows] = await database.pool.execute(query, [profesorId]);
         return rows;
     }
     
     /**
      * Obtener estadísticas detalladas de un estudiante específico
+     * ✅ CORREGIDO: Usar tabla profesor_estudiantes
      */
     static async obtenerEstadisticasEstudiante(profesorId, estudianteId) {
         const query = `
@@ -201,20 +227,19 @@ class ProfesorModel {
                 (SELECT COUNT(*) FROM progreso_lecciones pl WHERE pl.usuario_id = pe.usuario_id AND pl.completado = TRUE) as lecciones_completadas_total,
                 (SELECT COUNT(*) FROM progreso_lecciones pl WHERE pl.usuario_id = pe.usuario_id) as lecciones_iniciadas_total
                 
-            FROM profesor_asignaciones pa
-            INNER JOIN perfil_estudiantes pe 
-                ON pe.nivel_actual = pa.nivel 
-                AND pe.idioma_aprendizaje = pa.idioma
+            FROM profesor_estudiantes pes
+            INNER JOIN perfil_estudiantes pe ON pe.usuario_id = pes.estudiante_id
             INNER JOIN usuarios u ON u.id = pe.usuario_id
+            INNER JOIN profesor_asignaciones pa ON pa.profesor_id = pes.profesor_id
             INNER JOIN cursos c ON c.id = pa.curso_id
             LEFT JOIN estadisticas_estudiante ee ON ee.usuario_id = pe.usuario_id
-            WHERE pa.profesor_id = ? 
+            WHERE pes.profesor_id = ? 
                 AND pe.usuario_id = ?
-                AND pa.activo = TRUE
+                AND pes.activo = TRUE
             LIMIT 1
         `;
         
-        const [rows] = await database.pool.execute(query, [profesorId, estudianteId]); // ✅ CORREGIDO
+        const [rows] = await database.pool.execute(query, [profesorId, estudianteId]);
         return rows[0] || null;
     }
     
@@ -244,26 +269,24 @@ class ProfesorModel {
             ORDER BY l.orden ASC
         `;
         
-        const [rows] = await database.pool.execute(query, [profesorId]); // ✅ CORREGIDO
+        const [rows] = await database.pool.execute(query, [profesorId]);
         return rows;
     }
     
     /**
      * Verificar que el profesor tiene acceso al estudiante
+     * ✅ CORREGIDO: Usar tabla profesor_estudiantes
      */
     static async verificarAccesoEstudiante(profesorId, estudianteId) {
         const query = `
             SELECT COUNT(*) as tiene_acceso
-            FROM profesor_asignaciones pa
-            INNER JOIN perfil_estudiantes pe 
-                ON pe.nivel_actual = pa.nivel 
-                AND pe.idioma_aprendizaje = pa.idioma
-            WHERE pa.profesor_id = ? 
-                AND pe.usuario_id = ?
-                AND pa.activo = TRUE
+            FROM profesor_estudiantes
+            WHERE profesor_id = ? 
+                AND estudiante_id = ?
+                AND activo = TRUE
         `;
         
-        const [rows] = await database.pool.execute(query, [profesorId, estudianteId]); // ✅ CORREGIDO
+        const [rows] = await database.pool.execute(query, [profesorId, estudianteId]);
         return rows[0].tiene_acceso > 0;
     }
     
@@ -277,7 +300,7 @@ class ProfesorModel {
             WHERE id = ? AND profesor_id = ?
         `;
         
-        await database.pool.execute(query, [alertaId, profesorId]); // ✅ CORREGIDO
+        await database.pool.execute(query, [alertaId, profesorId]);
     }
 }
 

@@ -1,6 +1,6 @@
-# RAW LINKS — Actualizado 2025-11-12 20:54:32
+# RAW LINKS — Actualizado 2025-11-12 21:53:44
 # Repositorio: sTr4yDev/speakLexi2.0
-# Commit: 2e6d7bdefc83263e6c2c07f8a3d84f8b9ead81ae
+# Commit: ed6c22aa64450370774558a604c774ea9c014ae7
 
 ========================= BACKEND LINKS =========================
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/backend/config/database.js
@@ -102,6 +102,7 @@ https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/assets/js/
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/assets/js/pages/profesor/planificacion.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/assets/js/pages/profesor/retroalimentacion-profesor.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/assets/js/pages/testing/generador-datos.js
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/assets/js/pages/testing/generar-estudiantes-asignados.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/diag.html
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/index.html
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/admin/admin-dashboard.html
@@ -128,6 +129,7 @@ https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/prof
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/profesor/profesor-dashboard.html
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/profesor/retroalimentacion-profesor.html
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/testing/generar-datos.html
+https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/pages/testing/generar-estudiantes.html
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/css/main.css
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/auth.js
 https://raw.githubusercontent.com/sTr4yDev/speakLexi2.0/main/frontend/public/js/components/login-form.js

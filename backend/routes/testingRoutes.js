@@ -471,7 +471,7 @@ router.get('/profesores', async (req, res) => {
 });
 
 // ============================================
-// ENDPOINT: Generar Estudiantes Asignados a Profesor
+// ENDPOINT: Generar Estudiantes Asignados a Profesor (MEJORADO)
 // ============================================
 router.post('/generar-estudiantes-asignados', async (req, res) => {
     const connection = await db.pool.getConnection();
@@ -574,7 +574,7 @@ router.post('/generar-estudiantes-asignados', async (req, res) => {
 
             await connection.execute(queryPerfil, [usuarioId, nivel, idioma, xp]);
 
-            // Crear estadísticas iniciales
+            // ✅ Crear estadísticas iniciales
             await connection.execute(
                 'INSERT INTO estadisticas_estudiante (usuario_id) VALUES (?)',
                 [usuarioId]
@@ -587,13 +587,17 @@ router.post('/generar-estudiantes-asignados', async (req, res) => {
             `, [profesor_id, usuarioId, nivel, idioma]);
 
             let progresoGenerado = false;
+            let leccionesCompletadas = 0;
+            let leccionesIniciadas = 0;
+            let tiempoTotalSegundos = 0;
+            let sumaProgresos = 0;
 
             // Generar progreso si se solicita
             if (incluir_progreso && curso_id) {
                 try {
                     // Obtener lecciones del curso
                     const [lecciones] = await connection.execute(
-                        'SELECT id FROM lecciones WHERE curso_id = ? AND estado = "activa" LIMIT 5',
+                        'SELECT id, duracion_minutos FROM lecciones WHERE curso_id = ? AND estado = "activa" LIMIT 5',
                         [curso_id]
                     );
 
@@ -602,14 +606,42 @@ router.post('/generar-estudiantes-asignados', async (req, res) => {
                         
                         for (let j = 0; j < leccionesAGenerar; j++) {
                             const leccion = lecciones[j];
-                            const progreso = Math.floor(Math.random() * 100);
-                            const completada = progreso === 100;
+                            const progreso = Math.floor(Math.random() * 101); // 0-100
+                            const completada = progreso >= 80; // 80% o más se considera completada
+                            const tiempoLeccion = Math.floor(Math.random() * leccion.duracion_minutos * 60);
 
                             await connection.execute(`
                                 INSERT INTO progreso_lecciones (usuario_id, leccion_id, progreso, completada, tiempo_total_segundos)
                                 VALUES (?, ?, ?, ?, ?)
-                            `, [usuarioId, leccion.id, progreso, completada, Math.floor(Math.random() * 3600)]);
+                            `, [usuarioId, leccion.id, progreso, completada, tiempoLeccion]);
+                            
+                            leccionesIniciadas++;
+                            if (completada) leccionesCompletadas++;
+                            tiempoTotalSegundos += tiempoLeccion;
+                            sumaProgresos += progreso;
                         }
+
+                        // ✅ CALCULAR PROMEDIO GENERAL
+                        const promedioGeneral = leccionesIniciadas > 0 
+                            ? Math.round(sumaProgresos / leccionesIniciadas) 
+                            : 0;
+
+                        // ✅ ACTUALIZAR estadisticas_estudiante CON DATOS REALES
+                        await connection.execute(`
+                            UPDATE estadisticas_estudiante 
+                            SET 
+                                lecciones_completadas = ?,
+                                lecciones_en_progreso = ?,
+                                promedio_general = ?,
+                                tiempo_total_estudio = ?
+                            WHERE usuario_id = ?
+                        `, [
+                            leccionesCompletadas,
+                            leccionesIniciadas,
+                            promedioGeneral,
+                            tiempoTotalSegundos,
+                            usuarioId
+                        ]);
 
                         progresoGenerado = true;
                         conProgreso++;
@@ -627,7 +659,9 @@ router.post('/generar-estudiantes-asignados', async (req, res) => {
                 nivel: nivel,
                 idioma: idioma,
                 xp: xp,
-                progreso_generado: progresoGenerado
+                progreso_generado: progresoGenerado,
+                lecciones_completadas: leccionesCompletadas,
+                lecciones_iniciadas: leccionesIniciadas
             });
         }
 
