@@ -1,6 +1,6 @@
 /* ============================================
    SPEAKLEXI - Dashboard Profesor (Módulo 4)
-   ✅ VERSIÓN FINAL CORREGIDA - IDs del HTML
+   ✅ VERSIÓN CORREGIDA - Mapeo correcto de campos
    ============================================ */
 
 class ProfesorDashboard {
@@ -50,6 +50,11 @@ class ProfesorDashboard {
             this.profesorData = result.data;
             console.log('✅ Datos del dashboard cargados:', this.profesorData);
             
+            // 🔍 DEBUG: Ver estructura de datos
+            if (this.profesorData.estudiantes_recientes && this.profesorData.estudiantes_recientes.length > 0) {
+                console.log('📋 Estructura de estudiante:', this.profesorData.estudiantes_recientes[0]);
+            }
+            
         } catch (error) {
             console.error('❌ Error cargando datos:', error);
             throw error;
@@ -67,9 +72,7 @@ class ProfesorDashboard {
             estadisticas, 
             top_estudiantes = [],
             estudiantes_recientes = [],
-            alertas = [],
-            retroalimentacion = {},
-            planificacion = {}
+            alertas = []
         } = this.profesorData;
 
         // Header con información del profesor
@@ -78,7 +81,7 @@ class ProfesorDashboard {
         // Estadísticas principales
         this.actualizarEstadisticasPrincipales(estadisticas);
         
-        // Top 5 estudiantes (priorizar top_estudiantes, fallback a estudiantes_recientes)
+        // Top 5 estudiantes
         const estudiantesParaTop = top_estudiantes.length > 0 ? top_estudiantes : estudiantes_recientes;
         this.renderizarTopEstudiantes(estudiantesParaTop);
         
@@ -87,10 +90,6 @@ class ProfesorDashboard {
         
         // Alertas
         this.renderizarAlertas(alertas);
-        
-        // Estadísticas de retroalimentación y planificación
-        this.renderizarStatsRetroalimentacion(retroalimentacion);
-        this.renderizarStatsPlanificacion(planificacion);
 
         // Mostrar contenido
         this.mostrarContenido();
@@ -115,7 +114,6 @@ class ProfesorDashboard {
     }
 
     actualizarEstadisticasPrincipales(estadisticas) {
-        // ✅ IDs EXACTOS DEL HTML
         const elementos = {
             totalEstudiantes: document.getElementById('totalEstudiantes'),
             promedioClase: document.getElementById('promedioClase'),
@@ -123,48 +121,29 @@ class ProfesorDashboard {
             tiempoTotalHoras: document.getElementById('tiempoTotalHoras')
         };
 
-        console.log('📊 Actualizando estadísticas:', estadisticas);
-        console.log('🔍 Elementos encontrados:', {
-            totalEstudiantes: !!elementos.totalEstudiantes,
-            promedioClase: !!elementos.promedioClase,
-            leccionesCompletadas: !!elementos.leccionesCompletadas,
-            tiempoTotalHoras: !!elementos.tiempoTotalHoras
-        });
-
-        // Total Estudiantes
         if (elementos.totalEstudiantes) {
             elementos.totalEstudiantes.textContent = estadisticas.total_estudiantes || 0;
-            console.log('✅ Total estudiantes actualizado:', estadisticas.total_estudiantes);
         }
 
-        // Promedio de la Clase
         if (elementos.promedioClase) {
             const promedio = Math.round(estadisticas.promedio_clase || 0);
             elementos.promedioClase.textContent = `${promedio}%`;
-            console.log('✅ Promedio clase actualizado:', promedio);
         }
 
-        // Lecciones Completadas
         if (elementos.leccionesCompletadas) {
             elementos.leccionesCompletadas.textContent = 
                 (estadisticas.total_lecciones_completadas || 0).toLocaleString();
-            console.log('✅ Lecciones completadas actualizado:', estadisticas.total_lecciones_completadas);
         }
 
-        // Tiempo Total
         if (elementos.tiempoTotalHoras) {
             const horas = Math.round(estadisticas.tiempo_total_horas || 0);
             elementos.tiempoTotalHoras.textContent = `${horas}h`;
-            console.log('✅ Tiempo total actualizado:', horas);
         }
     }
 
     renderizarTopEstudiantes(estudiantes) {
         const container = document.getElementById('topEstudiantes');
-        if (!container) {
-            console.warn('⚠️ No se encontró el contenedor topEstudiantes');
-            return;
-        }
+        if (!container) return;
 
         if (!estudiantes || estudiantes.length === 0) {
             container.innerHTML = `
@@ -176,46 +155,46 @@ class ProfesorDashboard {
             return;
         }
 
-        // Tomar solo los primeros 5
         const top5 = estudiantes.slice(0, 5);
 
-        container.innerHTML = top5.map((est, index) => `
-            <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-                 onclick="dashboard.verDetalleEstudiante(${est.id})">
-                <div class="flex items-center space-x-4">
-                    <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br ${this.getGradientByRank(index)} rounded-full flex items-center justify-center text-white font-bold shadow-lg">
-                        ${index + 1}
+        container.innerHTML = top5.map((est, index) => {
+            const nombreCompleto = est.nombre_completo || `${est.nombre || ''} ${est.primer_apellido || ''}`.trim();
+            
+            return `
+                <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br ${this.getGradientByRank(index)} rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+                            ${index + 1}
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900 dark:text-white">
+                                ${nombreCompleto}
+                            </h4>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">
+                                ${est.lecciones_completadas || 0} lecciones completadas
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h4 class="font-semibold text-gray-900 dark:text-white">
-                            ${est.nombre_completo || `${est.nombre || ''} ${est.primer_apellido || ''}`}
-                        </h4>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">
-                            ${est.lecciones_completadas || 0} lecciones completadas
-                        </p>
+                    <div class="text-right">
+                        <div class="text-xl font-bold text-indigo-600 dark:text-indigo-400">
+                            ${est.total_xp || 0} XP
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            ${Math.round(est.promedio_general || est.promedio_progreso || 0)}% progreso
+                        </div>
                     </div>
                 </div>
-                <div class="text-right">
-                    <div class="text-xl font-bold text-indigo-600 dark:text-indigo-400">
-                        ${est.total_xp || 0} XP
-                    </div>
-                    <div class="text-sm text-gray-500">
-                        ${Math.round(est.promedio_general || est.promedio_progreso || 0)}% progreso
-                    </div>
-                </div>
-            </div>
-        `).join('');
-
-        console.log(`✅ Top ${top5.length} estudiantes renderizados`);
+            `;
+        }).join('');
     }
 
     getGradientByRank(index) {
         const gradients = [
-            'from-yellow-400 to-yellow-600',  // 1º Oro
-            'from-gray-300 to-gray-500',      // 2º Plata
-            'from-orange-400 to-orange-600',  // 3º Bronce
-            'from-blue-400 to-blue-600',      // 4º
-            'from-purple-400 to-purple-600'   // 5º
+            'from-yellow-400 to-yellow-600',
+            'from-gray-300 to-gray-500',
+            'from-orange-400 to-orange-600',
+            'from-blue-400 to-blue-600',
+            'from-purple-400 to-purple-600'
         ];
         return gradients[index] || 'from-gray-400 to-gray-600';
     }
@@ -240,57 +219,65 @@ class ProfesorDashboard {
             return;
         }
 
-        container.innerHTML = estudiantes.map(est => `
-            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-                onclick="dashboard.verDetalleEstudiante(${est.id})">
-                <td class="px-6 py-4">
-                    <div class="flex items-center space-x-3">
-                        <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                            <span class="text-white font-bold text-xs">
-                                ${(est.nombre?.charAt(0) || '')}${(est.primer_apellido?.charAt(0) || '')}
+        // 🔍 DEBUG: Ver estructura del primer estudiante
+        console.log('📋 Campos disponibles en estudiante:', Object.keys(estudiantes[0]));
+        console.log('📋 Datos del primer estudiante:', estudiantes[0]);
+
+        container.innerHTML = estudiantes.map(est => {
+            // ✅ MAPEO CORRECTO: Obtener ID correcto
+            const estudianteId = est.id || est.usuario_id;
+            
+            return `
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                                <span class="text-white font-bold text-xs">
+                                    ${(est.nombre?.charAt(0) || '')}${(est.primer_apellido?.charAt(0) || '')}
+                                </span>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-gray-900 dark:text-white">
+                                    ${est.nombre || ''} ${est.primer_apellido || ''}
+                                </div>
+                                <div class="text-sm text-gray-600 dark:text-gray-400">
+                                    ${est.correo || ''}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300 rounded-full font-medium">
+                            ${est.nivel_actual || est.nivel || 'A1'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-gray-900 dark:text-white">
+                        ${est.idioma_aprendizaje || est.idioma || 'Inglés'}
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">
+                            ${est.lecciones_completadas || 0}/${est.lecciones_iniciadas || est.lecciones_en_progreso || 0}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-20 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                                <div class="bg-green-500 h-2 rounded-full transition-all" 
+                                     style="width: ${Math.round(est.promedio_progreso || est.promedio_general || 0)}%"></div>
+                            </div>
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                ${Math.round(est.promedio_progreso || est.promedio_general || 0)}%
                             </span>
                         </div>
-                        <div>
-                            <div class="font-semibold text-gray-900 dark:text-white">
-                                ${est.nombre || ''} ${est.primer_apellido || ''}
-                            </div>
-                            <div class="text-sm text-gray-600 dark:text-gray-400">
-                                ${est.correo || ''}
-                            </div>
-                        </div>
-                    </div>
-                </td>
-                <td class="px-6 py-4">
-                    <span class="px-2 py-1 text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300 rounded-full font-medium">
-                        ${est.nivel_actual || 'N/A'}
-                    </span>
-                </td>
-                <td class="px-6 py-4 text-gray-900 dark:text-white">
-                    ${est.idioma_aprendizaje || 'N/A'}
-                </td>
-                <td class="px-6 py-4">
-                    <span class="text-sm text-gray-700 dark:text-gray-300">
-                        ${est.lecciones_completadas || 0}/${est.lecciones_iniciadas || 0}
-                    </span>
-                </td>
-                <td class="px-6 py-4">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-20 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-                            <div class="bg-green-500 h-2 rounded-full transition-all" 
-                                 style="width: ${Math.round(est.promedio_progreso || 0)}%"></div>
-                        </div>
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            ${Math.round(est.promedio_progreso || 0)}%
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="text-lg font-bold text-blue-600 dark:text-blue-400">
+                            ${est.total_xp || 0}
                         </span>
-                    </div>
-                </td>
-                <td class="px-6 py-4">
-                    <span class="text-lg font-bold text-blue-600 dark:text-blue-400">
-                        ${est.total_xp || 0}
-                    </span>
-                </td>
-            </tr>
-        `).join('');
+                    </td>
+                </tr>
+            `;
+        }).join('');
 
         console.log(`✅ ${estudiantes.length} estudiantes renderizados en la tabla`);
     }
@@ -301,7 +288,6 @@ class ProfesorDashboard {
         
         if (!container) return;
 
-        // Actualizar badge
         if (badge) {
             const totalAlertas = alertas?.length || 0;
             badge.textContent = totalAlertas;
@@ -359,58 +345,6 @@ class ProfesorDashboard {
         }).join('');
     }
 
-    renderizarStatsRetroalimentacion(stats) {
-        const container = document.getElementById('statsRetroalimentacion');
-        if (!container || !stats) return;
-
-        container.innerHTML = `
-            <div class="grid grid-cols-2 gap-4">
-                <div class="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">${stats.total_enviados || 0}</p>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Enviados</p>
-                </div>
-                <div class="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <p class="text-2xl font-bold text-green-600 dark:text-green-400">${stats.total_leidos || 0}</p>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Leídos</p>
-                </div>
-                <div class="text-center p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                    <p class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">${stats.total_no_leidos || 0}</p>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Pendientes</p>
-                </div>
-                <div class="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                    <p class="text-2xl font-bold text-purple-600 dark:text-purple-400">${stats.enviados_ultima_semana || 0}</p>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Esta semana</p>
-                </div>
-            </div>
-        `;
-    }
-
-    renderizarStatsPlanificacion(stats) {
-        const container = document.getElementById('statsPlanificacion');
-        if (!container || !stats) return;
-
-        container.innerHTML = `
-            <div class="space-y-3">
-                <div class="flex justify-between items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                    <span class="text-sm text-gray-600 dark:text-gray-400">Total planes</span>
-                    <span class="font-semibold text-gray-900 dark:text-white">${stats.total_planes || 0}</span>
-                </div>
-                <div class="flex justify-between items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                    <span class="text-sm text-gray-600 dark:text-gray-400">En progreso</span>
-                    <span class="font-semibold text-blue-600 dark:text-blue-400">${stats.planes_en_progreso || 0}</span>
-                </div>
-                <div class="flex justify-between items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                    <span class="text-sm text-gray-600 dark:text-gray-400">Completados</span>
-                    <span class="font-semibold text-green-600 dark:text-green-400">${stats.planes_completados || 0}</span>
-                </div>
-                <div class="flex justify-between items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                    <span class="text-sm text-gray-600 dark:text-gray-400">Estudiantes con plan</span>
-                    <span class="font-semibold text-purple-600 dark:text-purple-400">${stats.estudiantes_con_plan || 0}</span>
-                </div>
-            </div>
-        `;
-    }
-
     mostrarContenido() {
         const loading = document.getElementById('loadingDashboard');
         const content = document.getElementById('dashboardContent');
@@ -420,7 +354,6 @@ class ProfesorDashboard {
     }
 
     configurarEventListeners() {
-        // Botones de navegación
         const btnEstadisticas = document.getElementById('btnVerEstadisticas');
         const btnRetroalimentacion = document.getElementById('btnRetroalimentacion');
         const btnPlanificacion = document.getElementById('btnPlanificacion');
@@ -446,8 +379,6 @@ class ProfesorDashboard {
 
     async resolverAlerta(alertaId) {
         try {
-            console.log('✅ Resolviendo alerta:', alertaId);
-            
             const response = await fetch(`${this.API_URL}/profesor/alertas/${alertaId}/revisar`, {
                 method: 'PUT',
                 headers: {
@@ -460,8 +391,6 @@ class ProfesorDashboard {
                 await this.cargarDatosDashboard();
                 this.renderizarDashboard();
                 this.mostrarNotificacion('Alerta marcada como revisada', 'success');
-            } else {
-                throw new Error('Error al actualizar la alerta');
             }
         } catch (error) {
             console.error('❌ Error resolviendo alerta:', error);
@@ -470,8 +399,6 @@ class ProfesorDashboard {
     }
 
     mostrarNotificacion(mensaje, tipo = 'info') {
-        console.log(`📢 ${tipo.toUpperCase()}: ${mensaje}`);
-        
         const toast = document.createElement('div');
         toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
             tipo === 'success' ? 'bg-green-500 text-white' : 
@@ -481,10 +408,7 @@ class ProfesorDashboard {
         toast.textContent = mensaje;
         
         document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            document.body.removeChild(toast);
-        }, 3000);
+        setTimeout(() => document.body.removeChild(toast), 3000);
     }
 
     mostrarError(mensaje) {
