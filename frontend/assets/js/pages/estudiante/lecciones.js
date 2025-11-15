@@ -8,6 +8,11 @@
     'use strict';
 
     const dependencias = ['APP_CONFIG', 'toastManager', 'ModuleLoader', 'Utils'];
+    const progressStore = window.StudentProgress || null;
+
+    if (!progressStore) {
+        console.warn('[SpeakLexi] StudentProgress store no encontrado. La sesión actual no persistirá progreso.');
+    }
 
     const inicializado = await window.ModuleLoader.initModule({
         moduleName: 'Lecciones Interactivas',
@@ -179,6 +184,7 @@
                 elements.selectedLessonTitle.textContent = `${obtenerEtiquetaIdioma(estado.idioma)} · ${estado.nivel} (${obtenerDescripcionNivel(estado.nivel)})`;
             }
 
+            progressStore?.changeCourse(estado.idioma, estado.nivel);
             window.toastManager.success('¡Lección iniciada!');
             renderizarPregunta();
             window.Utils.scrollTo('#lesson-container', 120);
@@ -338,17 +344,34 @@
             const porcentaje = Math.round((estado.aciertos / total) * 100);
             const duracion = estado.inicio ? Math.round((Date.now() - estado.inicio) / 1000) : 0;
 
+            const progresoLeccion = progressStore?.recordLesson({
+                idioma: estado.idioma,
+                nivel: estado.nivel,
+                aciertos: estado.aciertos,
+                total
+            }) || null;
+
+            const xpGanado = progresoLeccion?.xpGanado ?? Math.max(10, estado.aciertos * 15);
+            const corazonesPerdidos = progresoLeccion?.corazonesPerdidos ?? Math.max(0, total - estado.aciertos);
+            const corazonesRestantes = progresoLeccion?.corazonesRestantes ?? Math.max(0, (progressStore?.MAX_HEARTS || 50) - corazonesPerdidos);
+
             guardarEnHistorial({
                 idioma: estado.idioma,
                 nivel: estado.nivel,
                 aciertos: estado.aciertos,
                 total,
                 porcentaje,
-                duracion
+                duracion,
+                xp: xpGanado,
+                corazones: {
+                    perdidos: corazonesPerdidos,
+                    restantes: corazonesRestantes
+                }
             });
 
             elements.lessonContainer?.classList.add('hidden');
             elements.resultsContainer.classList.remove('hidden');
+            window.toastManager.success(`Lección completada · +${xpGanado} XP`);
 
             const mensajeMotivador = porcentaje === 100
                 ? '¡Perfecto! Dominaste esta lección.'
@@ -359,6 +382,16 @@
                         : 'Te recomendamos repetir la lección para mejorar tu puntuación.';
 
             const idiomaEtiqueta = obtenerEtiquetaIdioma(estado.idioma);
+
+            const heartsMax = progressStore?.MAX_HEARTS || 50;
+            const logrosNuevos = progresoLeccion?.logrosDesbloqueados?.length
+                ? `<div class="p-4 rounded-xl bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800">
+                        <p class="text-sm font-semibold text-yellow-700 dark:text-yellow-200 mb-2">¡Nuevos logros desbloqueados!</p>
+                        <ul class="text-sm text-yellow-800 dark:text-yellow-100 space-y-1">
+                            ${progresoLeccion.logrosDesbloqueados.map((logro) => `<li>🏅 ${logro.titulo}</li>`).join('')}
+                        </ul>
+                    </div>`
+                : '';
 
             elements.resultsContainer.innerHTML = `
                 <div class="space-y-6 animate-fade-in">
@@ -372,7 +405,7 @@
                         </div>
                     </div>
 
-                    <div class="grid sm:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                         <div class="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                             <p class="text-sm text-gray-500 dark:text-gray-400">Precisión</p>
                             <p class="text-2xl font-bold text-primary-600 dark:text-primary-400">${porcentaje}%</p>
@@ -385,11 +418,22 @@
                             <p class="text-sm text-gray-500 dark:text-gray-400">Nivel practicado</p>
                             <p class="text-2xl font-bold text-green-600 dark:text-green-400">${estado.nivel}</p>
                         </div>
+                        <div class="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Experiencia ganada</p>
+                            <p class="text-2xl font-bold text-purple-600 dark:text-purple-300">+${xpGanado} XP</p>
+                        </div>
+                        <div class="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Corazones perdidos</p>
+                            <p class="text-2xl font-bold text-rose-600 dark:text-rose-400">-${corazonesPerdidos} ❤️</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Te quedan ${corazonesRestantes}/${heartsMax}</p>
+                        </div>
                     </div>
 
                     <div class="p-5 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700">
-                        <p class="text-sm text-primary-700 dark:text-primary-300">${mensajeMotivador}</p>
+                        <p class="text-sm text-primary-700 dark:text-primary-300">${mensajeMotivador} Ganaste <strong>${xpGanado} XP</strong> en esta sesión.</p>
                     </div>
+
+                    ${logrosNuevos}
 
                     <div class="flex flex-wrap gap-3">
                         <button id="retry-lesson-btn" class="px-5 py-3 rounded-xl bg-secondary-600 text-white font-semibold hover:bg-secondary-700 transition-colors">
@@ -447,6 +491,8 @@
             elements.historyContainer.innerHTML = historial.map((item) => {
                 const idiomaLabel = obtenerEtiquetaIdioma(item.idioma);
                 const fecha = window.Utils.formatDate(item.fecha, 'full');
+                const xpRegistro = item.xp || item.xp_ganado || 0;
+                const corazones = item.corazones?.perdidos ?? 0;
                 return `
                     <div class="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
                         <div class="flex items-center justify-between text-sm">
@@ -455,7 +501,11 @@
                         </div>
                         <div class="mt-2 flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
                             <span>${item.aciertos}/${item.total} aciertos</span>
-                            <span>${item.porcentaje}%</span>
+                            <span>${item.porcentaje}% · +${xpRegistro} XP</span>
+                        </div>
+                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between">
+                            <span>${item.duracion || 0}s</span>
+                            <span>${corazones} ❤️ perdidos</span>
                         </div>
                     </div>
                 `;
@@ -478,6 +528,9 @@
         }
 
         function obtenerIdiomaPreferido() {
+            const preferenciaProgreso = progressStore?.getSnapshot()?.idiomaKey;
+            if (preferenciaProgreso) return preferenciaProgreso;
+
             const storageKeys = window.APP_CONFIG?.STORAGE?.KEYS || {};
             const almacenado = window.Utils.getFromStorage(storageKeys.IDIOMA) || window.Utils.getFromStorage(storageKeys.CURSO_ACTUAL);
             if (!almacenado) return 'ingles';
