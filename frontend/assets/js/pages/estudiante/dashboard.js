@@ -6,6 +6,65 @@
 (async () => {
     'use strict';
 
+    const elementosIniciales = {
+        loading: document.getElementById('loading-dashboard'),
+        contenido: document.getElementById('contenido-dashboard')
+    };
+
+    function mostrarErrorInicial(mensaje) {
+        if (elementosIniciales.loading) {
+            elementosIniciales.loading.innerHTML = `
+                <div class="text-center space-y-4">
+                    <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 text-red-600">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <p class="text-gray-700 dark:text-gray-300 font-semibold">${mensaje}</p>
+                    <button class="px-4 py-2 bg-primary-600 text-white rounded-lg" onclick="window.location.reload()">
+                        Reintentar
+                    </button>
+                </div>`;
+        }
+        if (elementosIniciales.contenido) {
+            elementosIniciales.contenido.classList.remove('hidden');
+        }
+    }
+
+    // ============================================
+    // ELEMENTOS BASE PARA MANEJAR EL ESTADO DE CARGA
+    // ============================================
+    const cargaUI = {
+        contenido: document.getElementById('contenido-dashboard'),
+        loading: document.getElementById('loading-dashboard')
+    };
+
+    function mostrarSeccionPrincipal() {
+        if (cargaUI.loading) {
+            cargaUI.loading.classList.add('hidden');
+        }
+        if (cargaUI.contenido) {
+            cargaUI.contenido.classList.remove('hidden');
+        }
+    }
+
+    function mostrarErrorDependencias(titulo, detalle) {
+        mostrarSeccionPrincipal();
+
+        if (!cargaUI.contenido) return;
+
+        cargaUI.contenido.innerHTML = `
+            <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-8 text-center">
+                <div class="w-16 h-16 bg-red-100 dark:bg-red-800/40 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-plug-circle-xmark text-red-600 dark:text-red-200 text-2xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-red-700 dark:text-red-100 mb-3">${titulo}</h3>
+                <p class="text-red-600 dark:text-red-200 mb-6">${detalle}</p>
+                <button class="px-6 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors" onclick="window.location.reload()">
+                    <i class="fas fa-rotate-right mr-2"></i>Reintentar
+                </button>
+            </div>
+        `;
+    }
+
     // ============================================
     // ELEMENTOS BASE PARA MANEJAR EL ESTADO DE CARGA
     // ============================================
