@@ -30,30 +30,144 @@
     }
 
     // ============================================
+    // ELEMENTOS BASE PARA MANEJAR EL ESTADO DE CARGA
+    // ============================================
+    const cargaUI = {
+        contenido: document.getElementById('contenido-dashboard'),
+        loading: document.getElementById('loading-dashboard')
+    };
+
+    function mostrarSeccionPrincipal() {
+        if (cargaUI.loading) {
+            cargaUI.loading.classList.add('hidden');
+        }
+        if (cargaUI.contenido) {
+            cargaUI.contenido.classList.remove('hidden');
+        }
+    }
+
+    function mostrarErrorDependencias(titulo, detalle) {
+        mostrarSeccionPrincipal();
+
+        if (!cargaUI.contenido) return;
+
+        cargaUI.contenido.innerHTML = `
+            <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-8 text-center">
+                <div class="w-16 h-16 bg-red-100 dark:bg-red-800/40 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-plug-circle-xmark text-red-600 dark:text-red-200 text-2xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-red-700 dark:text-red-100 mb-3">${titulo}</h3>
+                <p class="text-red-600 dark:text-red-200 mb-6">${detalle}</p>
+                <button class="px-6 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors" onclick="window.location.reload()">
+                    <i class="fas fa-rotate-right mr-2"></i>Reintentar
+                </button>
+            </div>
+        `;
+    }
+
+    // ============================================
     // ESPERAR DEPENDENCIAS
     // ============================================
-    const dependencias = ['APP_CONFIG', 'apiClient', 'ModuleLoader'];
+    const dependencias = ['APP_CONFIG', 'ModuleLoader'];
+    const moduleLoader = window.ModuleLoader;
+    let apiClientReadyPromise = null;
 
-    if (!window.ModuleLoader?.initModule) {
-        console.error('❌ ModuleLoader no disponible en dashboard');
-        mostrarErrorInicial('No fue posible inicializar el dashboard. Recarga la página.');
+    if (!moduleLoader || typeof moduleLoader.initModule !== 'function') {
+        mostrarErrorDependencias('No se pudo preparar el dashboard', 'El cargador de módulos no está disponible. Asegúrate de incluir /assets/js/core/module-loader.js en el HTML.');
         return;
     }
 
-    const inicializado = await window.ModuleLoader.initModule({
+    const inicializado = await moduleLoader.initModule({
         moduleName: 'Dashboard Estudiante',
         dependencies: dependencias,
         onReady: inicializarDashboard,
         onError: (error) => {
             console.error('💥 Error al cargar dashboard:', error);
-            mostrarErrorDashboard('Error al cargar el dashboard');
-        },
-        maxWait: 8000
+            mostrarErrorDependencias('No se pudo iniciar el dashboard', 'Ocurrió un error inesperado durante la inicialización.');
+        }
     });
 
     if (!inicializado) {
-        mostrarErrorInicial('No se pudieron cargar los recursos del dashboard. Verifica tu conexión e inténtalo nuevamente.');
+        const faltantes = dependencias.filter(dep => !window[dep]);
+        const detalle = faltantes.length
+            ? `No se cargaron las dependencias: ${faltantes.join(', ')}. Verifica que los scripts necesarios estén disponibles.`
+            : 'El cargador de módulos no pudo inicializar esta página. Revisa la consola para más detalles.';
+        mostrarErrorDependencias('No se pudo cargar el dashboard', detalle);
         return;
+    }
+
+    function esperarApiClient(maxWait = 10000) {
+        return new Promise((resolve, reject) => {
+            const start = Date.now();
+            const interval = setInterval(() => {
+                if (window.apiClient) {
+                    clearInterval(interval);
+                    resolve(window.apiClient);
+                    return;
+                }
+                if (window.APIClient) {
+                    window.apiClient = new window.APIClient();
+                    clearInterval(interval);
+                    resolve(window.apiClient);
+                    return;
+                }
+
+                if (Date.now() - start >= maxWait) {
+                    clearInterval(interval);
+                    reject(new Error('apiClient no estuvo listo dentro del tiempo esperado'));
+                }
+            }, 50);
+        });
+    }
+
+    function cargarScriptAsync(src) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.async = true;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error(`No se pudo cargar ${src}`));
+            document.head.appendChild(script);
+        });
+    }
+
+    async function asegurarApiClient() {
+        if (window.apiClient) {
+            return window.apiClient;
+        }
+
+        if (window.APIClient) {
+            window.apiClient = new window.APIClient();
+            return window.apiClient;
+        }
+
+        if (!apiClientReadyPromise) {
+            apiClientReadyPromise = esperarApiClient();
+        }
+
+        try {
+            return await apiClientReadyPromise;
+        } catch (error) {
+            console.warn('⌛ apiClient no estuvo listo a tiempo, reintentando con carga directa...', error);
+            apiClientReadyPromise = null;
+
+            try {
+                await cargarScriptAsync('/assets/js/core/api-client.js');
+            } catch (cargaError) {
+                throw new Error(`No se pudo cargar el cliente API: ${cargaError.message}`);
+            }
+
+            if (window.apiClient) {
+                return window.apiClient;
+            }
+
+            if (window.APIClient) {
+                window.apiClient = new window.APIClient();
+                return window.apiClient;
+            }
+
+            throw new Error('apiClient sigue sin inicializar después del reintento');
+        }
     }
 
     // ============================================
@@ -62,9 +176,19 @@
     async function inicializarDashboard() {
         console.log('✅ Dashboard Estudiante iniciando...');
 
-        const client = window.apiClient;
+        mostrarSeccionPrincipal();
+
+        let client;
+        try {
+            client = await asegurarApiClient();
+        } catch (error) {
+            console.error('💥 No fue posible asegurar apiClient para el dashboard:', error);
+            mostrarErrorDependencias('No se pudo preparar el dashboard', 'No fue posible inicializar el cliente API en el navegador. Recarga la página o verifica que /assets/js/core/api-client.js esté accesible.');
+            return;
+        }
         const progressStore = window.StudentProgress || null;
         let seUsoDashboardLocal = false;
+        let prehidratadoConLocal = false;
 
         // ===================================
         // ELEMENTOS DEL DOM
@@ -167,10 +291,21 @@
             }
         }
 
+        function prehidratarDashboardLocal() {
+            if (!progressStore || prehidratadoConLocal) return;
+            const data = progressStore.getDashboardData();
+            if (!data) return;
+            prehidratadoConLocal = true;
+            actualizarStatsSuperiores(data);
+            renderizarContenidoDinamico(data);
+            renderizarLeccionesRecomendadas(data.leccionesRecomendadas || []);
+        }
+
         function mostrarDashboardLocal() {
             if (!progressStore) return false;
             if (seUsoDashboardLocal) return true;
             const data = progressStore.getDashboardData();
+            if (!data) return false;
             actualizarStatsSuperiores(data);
             renderizarContenidoDinamico(data);
             seUsoDashboardLocal = true;
@@ -883,7 +1018,9 @@
 
         function mostrarEstadoSinDatos(mensaje) {
             console.error('📭 Estado sin datos:', mensaje);
-            
+
+            mostrarSeccionPrincipal();
+
             if (elementos.contenidoDashboard) {
                 elementos.contenidoDashboard.innerHTML = `
                     <div class="bg-yellow-50 border border-yellow-200 rounded-2xl p-8 text-center">
@@ -919,6 +1056,7 @@
 
         function mostrarErrorDashboard(mensaje) {
             console.error('💥 Error dashboard:', mensaje);
+            mostrarSeccionPrincipal();
             mostrarEstadoSinDatos(mensaje);
         }
 
@@ -985,13 +1123,8 @@
         // INICIALIZACIÓN
         // ===================================
         
-        // Ocultar loading y mostrar contenido
-        if (elementos.loadingDashboard) {
-            elementos.loadingDashboard.classList.add('hidden');
-        }
-        if (elementos.contenidoDashboard) {
-            elementos.contenidoDashboard.classList.remove('hidden');
-        }
+        // Pre-hidratar con datos locales para que el estudiante siempre vea contenido aunque no haya API
+        prehidratarDashboardLocal();
 
         // Pre-hidratar con datos locales para que el estudiante siempre vea contenido aunque no haya API
         prehidratarDashboardLocal();
