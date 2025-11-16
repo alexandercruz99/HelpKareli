@@ -993,6 +993,9 @@
             elementos.contenidoDashboard.classList.remove('hidden');
         }
 
+        // Pre-hidratar con datos locales para que el estudiante siempre vea contenido aunque no haya API
+        prehidratarDashboardLocal();
+
         // Cargar datos
         await cargarResumen();
 
