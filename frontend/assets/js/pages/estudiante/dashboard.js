@@ -6,63 +6,168 @@
 (async () => {
     'use strict';
 
-    const elementosIniciales = {
-        loading: document.getElementById('loading-dashboard'),
-        contenido: document.getElementById('contenido-dashboard')
-    };
+    const FALLBACK_TIMESTAMP = new Date().toISOString();
+    const FALLBACK_DASHBOARD = Object.freeze({
+        usuario: {
+            nombre: 'Estudiante',
+            nivel: 'A1',
+            idioma: 'Inglés',
+            xp: 0,
+            racha_dias: 1
+        },
+        progreso: {
+            leccionesCompletadas: 0,
+            tiempoEstudio: 0,
+            general: 0
+        },
+        estadisticas: {
+            rachaActual: 1,
+            puntosTotales: 0,
+            lecciones_completadas: 0
+        },
+        cursos: [
+            {
+                id: 'ingles-general',
+                idiomaKey: 'ingles',
+                idiomaLabel: 'Inglés',
+                nombre: 'Inglés general',
+                icono: '🇬🇧',
+                nivel: 'A1',
+                progreso: 12,
+                xp: 0,
+                activo: true,
+                ultimoAcceso: FALLBACK_TIMESTAMP
+            }
+        ],
+        logros: [
+            {
+                id: 'primer_paso',
+                titulo: 'Primer Paso',
+                descripcion: 'Completaste tu primera lección en SpeakLexi.',
+                xp_otorgado: 50,
+                earned: true,
+                earnedAt: FALLBACK_TIMESTAMP
+            },
+            {
+                id: 'perfeccionista',
+                titulo: 'Perfeccionista',
+                descripcion: 'Lograste una lección perfecta con 10/10 aciertos.',
+                xp_otorgado: 80,
+                earned: true,
+                earnedAt: FALLBACK_TIMESTAMP
+            },
+            {
+                id: 'explorador_idiomas',
+                titulo: 'Explorador de Idiomas',
+                descripcion: 'Comienza cursos en dos idiomas distintos.',
+                xp_otorgado: 90,
+                earned: false,
+                earnedAt: null
+            }
+        ],
+        leccionesRecomendadas: [
+            { id: 'ingles-a1', titulo: 'Inglés A1', idioma: 'ingles', idiomaLabel: 'Inglés', nivel: 'A1', descripcion: '10 preguntas clave para tu nivel A1 de Inglés.', duracion_minutos: 15, icono: '🇬🇧' },
+            { id: 'ingles-a2', titulo: 'Inglés A2', idioma: 'ingles', idiomaLabel: 'Inglés', nivel: 'A2', descripcion: 'Perfecciona vocabulario y estructuras básicas.', duracion_minutos: 15, icono: '🇬🇧' },
+            { id: 'ingles-b1', titulo: 'Inglés B1', idioma: 'ingles', idiomaLabel: 'Inglés', nivel: 'B1', descripcion: 'Desarrolla comprensión intermedia con situaciones reales.', duracion_minutos: 15, icono: '🇬🇧' },
+            { id: 'frances-a1', titulo: 'Francés A1', idioma: 'frances', idiomaLabel: 'Francés', nivel: 'A1', descripcion: 'Aprende saludos y expresiones esenciales en francés.', duracion_minutos: 15, icono: '🇫🇷' },
+            { id: 'aleman-a1', titulo: 'Alemán A1', idioma: 'aleman', idiomaLabel: 'Alemán', nivel: 'A1', descripcion: 'Domina tus primeras frases en alemán.', duracion_minutos: 15, icono: '🇩🇪' },
+            { id: 'italiano-a1', titulo: 'Italiano A1', idioma: 'italiano', idiomaLabel: 'Italiano', nivel: 'A1', descripcion: 'Exprésate en italiano desde la primera clase.', duracion_minutos: 15, icono: '🇮🇹' }
+        ],
+        leccionesEnProgreso: [],
+        lecciones_completadas: []
+    });
 
-    function mostrarErrorInicial(mensaje) {
-        if (elementosIniciales.loading) {
-            elementosIniciales.loading.innerHTML = `
-                <div class="text-center space-y-4">
-                    <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 text-red-600">
-                        <i class="fas fa-exclamation-triangle"></i>
-                    </div>
-                    <p class="text-gray-700 dark:text-gray-300 font-semibold">${mensaje}</p>
-                    <button class="px-4 py-2 bg-primary-600 text-white rounded-lg" onclick="window.location.reload()">
-                        Reintentar
-                    </button>
-                </div>`;
-        }
-        if (elementosIniciales.contenido) {
-            elementosIniciales.contenido.classList.remove('hidden');
+    function clonarDashboardFallback() {
+        return JSON.parse(JSON.stringify(FALLBACK_DASHBOARD));
+    }
+
+    function obtenerDebugFlag() {
+        if (typeof window === 'undefined') return false;
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const debugParams = (params.getAll('debug') || []).join(',').toLowerCase();
+            const debugDashboard = params.get('dashboard-debug');
+            const storageFlag = window.localStorage ? localStorage.getItem('dashboardDebug') : null;
+            return (
+                debugParams.includes('dashboard') ||
+                debugDashboard === 'true' ||
+                (storageFlag === 'true')
+            );
+        } catch (error) {
+            return false;
         }
     }
 
-    // ============================================
-    // ELEMENTOS BASE PARA MANEJAR EL ESTADO DE CARGA
-    // ============================================
-    const cargaUI = {
-        contenido: document.getElementById('contenido-dashboard'),
-        loading: document.getElementById('loading-dashboard')
-    };
+    const DASHBOARD_DEBUG_ENABLED = obtenerDebugFlag();
+    const diagnosticosDashboard = [];
+    let actualizarPanelDebug = () => {};
+    let dashboardInicializado = false;
+    let arranqueManualEnCurso = false;
 
-    function mostrarSeccionPrincipal() {
-        if (cargaUI.loading) {
-            cargaUI.loading.classList.add('hidden');
+    function registrarDiagnostico(etapa, detalle, tipo = 'info') {
+        const registro = {
+            etapa,
+            detalle,
+            tipo,
+            timestamp: Date.now(),
+            hora: new Date().toLocaleTimeString()
+        };
+        diagnosticosDashboard.push(registro);
+
+        if (!DASHBOARD_DEBUG_ENABLED) return;
+
+        const logFn = tipo === 'error' ? console.error : tipo === 'warn' ? console.warn : console.log;
+        logFn(`[Dashboard][${registro.hora}] ${etapa}: ${detalle}`);
+        actualizarPanelDebug();
+    }
+
+    registrarDiagnostico('bootstrap', 'Script del dashboard cargado');
+
+    async function iniciarDashboardFallback(motivo, error) {
+        if (arranqueManualEnCurso) {
+            registrarDiagnostico('module-loader-fallback', `Intento ignorado (${motivo})`, 'warn');
+            return;
         }
-        if (cargaUI.contenido) {
-            cargaUI.contenido.classList.remove('hidden');
+
+        arranqueManualEnCurso = true;
+        registrarDiagnostico('module-loader-fallback', `Inicializando manualmente (${motivo})`, 'warn');
+
+        if (error) {
+            console.warn('⚠️  Motivo del fallback manual:', error);
+        }
+
+        try {
+            await inicializarDashboard();
+        } catch (fallbackError) {
+            console.error('💥 Error al inicializar manualmente el dashboard:', fallbackError);
+            mostrarErrorDependencias(
+                'No se pudo cargar el dashboard',
+                fallbackError?.message || 'Ocurrió un error durante la inicialización. Intenta recargar la página.'
+            );
         }
     }
 
-    function mostrarErrorDependencias(titulo, detalle) {
-        mostrarSeccionPrincipal();
+    if (typeof window !== 'undefined') {
+        window.dashboardDebugInfo = {
+            get enabled() {
+                return DASHBOARD_DEBUG_ENABLED;
+            },
+            get eventos() {
+                return [...diagnosticosDashboard];
+            }
+        };
 
-        if (!cargaUI.contenido) return;
-
-        cargaUI.contenido.innerHTML = `
-            <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-8 text-center">
-                <div class="w-16 h-16 bg-red-100 dark:bg-red-800/40 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-plug-circle-xmark text-red-600 dark:text-red-200 text-2xl"></i>
-                </div>
-                <h3 class="text-2xl font-bold text-red-700 dark:text-red-100 mb-3">${titulo}</h3>
-                <p class="text-red-600 dark:text-red-200 mb-6">${detalle}</p>
-                <button class="px-6 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors" onclick="window.location.reload()">
-                    <i class="fas fa-rotate-right mr-2"></i>Reintentar
-                </button>
-            </div>
-        `;
+        window.toggleDashboardDebug = function(force) {
+            try {
+                const destino = typeof force === 'boolean' ? force : !DASHBOARD_DEBUG_ENABLED;
+                localStorage.setItem('dashboardDebug', destino ? 'true' : 'false');
+                console.info(`Modo debug del dashboard ${destino ? 'activado' : 'desactivado'}. Recarga la página para aplicar.`);
+                return destino;
+            } catch (error) {
+                console.error('No se pudo alternar el modo debug del dashboard', error);
+                return DASHBOARD_DEBUG_ENABLED;
+            }
+        };
     }
 
     // ============================================
@@ -109,7 +214,8 @@
     let apiClientReadyPromise = null;
 
     if (!moduleLoader || typeof moduleLoader.initModule !== 'function') {
-        mostrarErrorDependencias('No se pudo preparar el dashboard', 'El cargador de módulos no está disponible. Asegúrate de incluir /assets/js/core/module-loader.js en el HTML.');
+        registrarDiagnostico('module-loader', 'No disponible en window. Arrancando fallback.', 'warn');
+        await iniciarDashboardFallback('module-loader-no-disponible');
         return;
     }
 
@@ -119,16 +225,20 @@
         onReady: inicializarDashboard,
         onError: (error) => {
             console.error('💥 Error al cargar dashboard:', error);
-            mostrarErrorDependencias('No se pudo iniciar el dashboard', 'Ocurrió un error inesperado durante la inicialización.');
+            iniciarDashboardFallback('module-loader-error', error);
         }
     });
 
     if (!inicializado) {
         const faltantes = dependencias.filter(dep => !window[dep]);
-        const detalle = faltantes.length
-            ? `No se cargaron las dependencias: ${faltantes.join(', ')}. Verifica que los scripts necesarios estén disponibles.`
-            : 'El cargador de módulos no pudo inicializar esta página. Revisa la consola para más detalles.';
-        mostrarErrorDependencias('No se pudo cargar el dashboard', detalle);
+        registrarDiagnostico(
+            'module-loader',
+            faltantes.length
+                ? `Dependencias ausentes: ${faltantes.join(', ')}`
+                : 'ModuleLoader no pudo confirmar dependencias',
+            'warn'
+        );
+        await iniciarDashboardFallback('dependencias-incompletas');
         return;
     }
 
@@ -169,39 +279,50 @@
 
     async function asegurarApiClient() {
         if (window.apiClient) {
+            registrarDiagnostico('api-client', 'Se reutilizó la instancia global existente');
             return window.apiClient;
         }
 
         if (window.APIClient) {
             window.apiClient = new window.APIClient();
+            registrarDiagnostico('api-client', 'Se creó una instancia nueva desde APIClient');
             return window.apiClient;
         }
 
         if (!apiClientReadyPromise) {
+            registrarDiagnostico('api-client', 'Esperando a que apiClient esté disponible en la ventana');
             apiClientReadyPromise = esperarApiClient();
         }
 
         try {
-            return await apiClientReadyPromise;
+            const clienteListo = await apiClientReadyPromise;
+            registrarDiagnostico('api-client', 'apiClient listo tras espera activa');
+            return clienteListo;
         } catch (error) {
+            registrarDiagnostico('api-client-timeout', error.message, 'warn');
             console.warn('⌛ apiClient no estuvo listo a tiempo, reintentando con carga directa...', error);
             apiClientReadyPromise = null;
 
             try {
                 await cargarScriptAsync('/assets/js/core/api-client.js');
+                registrarDiagnostico('api-client', 'Script del cliente API recargado manualmente');
             } catch (cargaError) {
+                registrarDiagnostico('api-client-error', cargaError.message, 'error');
                 throw new Error(`No se pudo cargar el cliente API: ${cargaError.message}`);
             }
 
             if (window.apiClient) {
+                registrarDiagnostico('api-client', 'apiClient disponible tras recarga');
                 return window.apiClient;
             }
 
             if (window.APIClient) {
                 window.apiClient = new window.APIClient();
+                registrarDiagnostico('api-client', 'APIClient instanciado tras recarga');
                 return window.apiClient;
             }
 
+            registrarDiagnostico('api-client-error', 'apiClient siguió sin inicializar después del reintento', 'error');
             throw new Error('apiClient sigue sin inicializar después del reintento');
         }
     }
@@ -210,21 +331,12 @@
     // FUNCIÓN PRINCIPAL
     // ============================================
     async function inicializarDashboard() {
-        console.log('✅ Dashboard Estudiante iniciando...');
-
-        mostrarSeccionPrincipal();
-
-        let client;
-        try {
-            client = await asegurarApiClient();
-        } catch (error) {
-            console.error('💥 No fue posible asegurar apiClient para el dashboard:', error);
-            mostrarErrorDependencias('No se pudo preparar el dashboard', 'No fue posible inicializar el cliente API en el navegador. Recarga la página o verifica que /assets/js/core/api-client.js esté accesible.');
+        if (dashboardInicializado) {
+            registrarDiagnostico('bootstrap', 'Inicialización ignorada (ya se ejecutó)');
             return;
         }
-        const progressStore = window.StudentProgress || null;
-        let seUsoDashboardLocal = false;
-        let prehidratadoConLocal = false;
+        dashboardInicializado = true;
+        console.log('✅ Dashboard Estudiante iniciando...');
 
         // ===================================
         // ELEMENTOS DEL DOM
@@ -236,7 +348,7 @@
             leccionesCompletadasStat: document.getElementById('lecciones-completadas-stat'),
             nivelUsuarioStat: document.getElementById('nivel-usuario-stat'),
             idiomaAprendizajeStat: document.getElementById('idioma-aprendizaje-stat'),
-            
+
             // Contenedor principal
             contenidoDashboard: document.getElementById('contenido-dashboard'),
             loadingDashboard: document.getElementById('loading-dashboard'),
@@ -246,19 +358,84 @@
             logoutBtn: document.getElementById('logout-dashboard-btn')
         };
 
+        mostrarSeccionPrincipal();
+        registrarDiagnostico('ui', 'Contenedor principal visible');
+
+        let client;
+        const progressStore = window.StudentProgress || null;
+        let seUsoDashboardLocal = false;
+        let prehidratadoConLocal = false;
+        let seUsoFallbackBase = false;
+
+        if (progressStore) {
+            registrarDiagnostico('student-progress', 'StudentProgress disponible en la ventana');
+        } else {
+            registrarDiagnostico('student-progress', 'StudentProgress no está disponible. Se usará maqueta local.', 'warn');
+        }
+
+        actualizarPanelDebug = function() {
+            if (!DASHBOARD_DEBUG_ENABLED || !elementos.contenidoDashboard) return;
+
+            let panel = document.getElementById('dashboard-debug-panel');
+            if (!panel) {
+                panel = document.createElement('div');
+                panel.id = 'dashboard-debug-panel';
+                panel.className = 'mb-6 rounded-2xl border-2 border-dashed border-purple-300 bg-white/80 dark:bg-gray-900/40 p-4 text-sm text-gray-700 dark:text-gray-100 shadow-inner backdrop-blur';
+                elementos.contenidoDashboard.prepend(panel);
+            }
+
+            const lista = diagnosticosDashboard
+                .slice(-8)
+                .map((item) => {
+                    const color = item.tipo === 'error'
+                        ? 'text-red-600 dark:text-red-300'
+                        : item.tipo === 'warn'
+                            ? 'text-amber-600 dark:text-amber-300'
+                            : 'text-gray-700 dark:text-gray-200';
+                    return `
+                        <li class="flex items-start gap-2">
+                            <span class="text-xs font-semibold text-purple-600 dark:text-purple-300">${item.hora}</span>
+                            <span class="text-xs uppercase tracking-wide ${color}">${item.etapa}</span>
+                            <span class="text-xs text-gray-600 dark:text-gray-300">${item.detalle}</span>
+                        </li>
+                    `;
+                })
+                .join('');
+
+            panel.innerHTML = `
+                <p class="text-xs font-semibold text-purple-700 dark:text-purple-200 mb-2 flex items-center gap-2">
+                    <i class="fas fa-bug"></i>
+                    Modo debug del dashboard activo (${diagnosticosDashboard.length} eventos)
+                </p>
+                <ul class="space-y-1 max-h-60 overflow-auto pr-2">${lista || '<li class="text-xs text-gray-500">Sin eventos aún</li>'}</ul>
+            `;
+        };
+
+        try {
+            client = await asegurarApiClient();
+            registrarDiagnostico('api-client', 'Cliente API asegurado correctamente');
+        } catch (error) {
+            registrarDiagnostico('api-client-error', error.message, 'error');
+            console.error('💥 No fue posible asegurar apiClient para el dashboard:', error);
+            mostrarErrorDependencias('No se pudo preparar el dashboard', 'No fue posible inicializar el cliente API en el navegador. Recarga la página o verifica que /assets/js/core/api-client.js esté accesible.');
+            return;
+        }
+
         // ===================================
         // CARGAR RESUMEN DEL ESTUDIANTE - CORREGIDO
         // ===================================
         async function cargarResumen() {
             try {
+                registrarDiagnostico('api', 'Solicitando /progreso/resumen');
                 console.log('🔄 Cargando resumen del estudiante...');
 
                 const resultado = await client.get('/progreso/resumen');
                 console.log('🔍 DEBUG Resultado completo:', resultado);
 
                 if (!resultado.success) {
+                    registrarDiagnostico('api', `Respuesta no exitosa (${resultado.status || 'sin status'})`, 'warn');
                     if (resultado.status === 404) {
-                        if (!mostrarDashboardLocal()) {
+                        if (!mostrarDashboardLocal('api-404')) {
                             mostrarEstadoInicial();
                         }
                         return;
@@ -269,7 +446,8 @@
                 const datosReales = resultado.data?.data || resultado.data;
                 if (!datosReales || typeof datosReales !== 'object' || Object.keys(datosReales).length === 0) {
                     console.warn('⚠️ No hay datos disponibles desde API, usando progreso local');
-                    if (!mostrarDashboardLocal()) {
+                    registrarDiagnostico('api', 'Respuesta vacía, se usa fuente local', 'warn');
+                    if (!mostrarDashboardLocal('api-vacio')) {
                         mostrarEstadoInicial();
                     }
                     return;
@@ -278,10 +456,12 @@
                 actualizarStatsSuperiores(datosReales);
                 renderizarContenidoDinamico(datosReales);
                 await cargarLeccionesRecomendadas();
+                registrarDiagnostico('api', 'Resumen sincronizado correctamente');
 
             } catch (error) {
                 console.error('❌ Error al cargar resumen:', error);
-                if (!mostrarDashboardLocal()) {
+                registrarDiagnostico('api-error', error.message || 'Error desconocido', 'error');
+                if (!mostrarDashboardLocal('api-error')) {
                     if (error.message.includes('404') || error.message.includes('No hay datos')) {
                         mostrarEstadoInicial();
                     } else {
@@ -298,11 +478,19 @@
             try {
                 console.log('🔄 Cargando lecciones recomendadas...');
 
+                let locales = [];
                 if (progressStore) {
-                    const locales = progressStore.getRecommendedLessons(8);
-                    if (locales.length) {
-                        renderizarLeccionesRecomendadas(locales);
-                    }
+                    locales = progressStore.getRecommendedLessons(8);
+                    registrarDiagnostico('lecciones', `StudentProgress devolvió ${locales.length} recomendaciones`);
+                }
+
+                if (!locales.length) {
+                    locales = obtenerFallbackLecciones();
+                    registrarDiagnostico('lecciones', 'Se usó maqueta local para recomendaciones', 'warn');
+                }
+
+                if (locales.length) {
+                    renderizarLeccionesRecomendadas(locales);
                 }
 
                 const resultado = await client.get('/progreso/lecciones-recomendadas');
@@ -310,6 +498,7 @@
 
                 if (!resultado.success) {
                     console.warn('⚠️ No se pudieron cargar lecciones recomendadas:', resultado.error);
+                    registrarDiagnostico('lecciones', `Error API: ${resultado.error || 'desconocido'}`, 'warn');
                     return;
                 }
 
@@ -317,35 +506,54 @@
                 const leccionesRecomendadas = data.lecciones_recomendadas || data.data || data || [];
 
                 if (Array.isArray(leccionesRecomendadas) && leccionesRecomendadas.length > 0) {
+                    registrarDiagnostico('lecciones', `API devolvió ${leccionesRecomendadas.length} recomendaciones`);
                     renderizarLeccionesRecomendadas(leccionesRecomendadas);
                 } else {
                     console.log('ℹ️ No hay lecciones recomendadas disponibles');
+                    registrarDiagnostico('lecciones', 'API no devolvió recomendaciones', 'warn');
                 }
 
             } catch (error) {
                 console.error('❌ Error al cargar lecciones recomendadas:', error);
+                registrarDiagnostico('lecciones-error', error.message || 'Fallo desconocido', 'error');
             }
         }
 
         function prehidratarDashboardLocal() {
-            if (!progressStore || prehidratadoConLocal) return;
-            const data = progressStore.getDashboardData();
+            if (prehidratadoConLocal) return;
+            const data = obtenerDatosLocales('pre-hidratación');
             if (!data) return;
             prehidratadoConLocal = true;
             actualizarStatsSuperiores(data);
             renderizarContenidoDinamico(data);
-            renderizarLeccionesRecomendadas(data.leccionesRecomendadas || []);
+            const fallbackLessons = data.leccionesRecomendadas || data.lecciones_recomendadas || [];
+            renderizarLeccionesRecomendadas(fallbackLessons);
         }
 
-        function mostrarDashboardLocal() {
-            if (!progressStore) return false;
+        function mostrarDashboardLocal(motivo = 'respaldo') {
             if (seUsoDashboardLocal) return true;
-            const data = progressStore.getDashboardData();
+            const data = obtenerDatosLocales(motivo);
             if (!data) return false;
             actualizarStatsSuperiores(data);
             renderizarContenidoDinamico(data);
+            const fallbackLessons = data.leccionesRecomendadas || data.lecciones_recomendadas || [];
+            renderizarLeccionesRecomendadas(fallbackLessons);
             seUsoDashboardLocal = true;
             return true;
+        }
+
+        function obtenerDatosLocales(motivo = 'local') {
+            if (progressStore) {
+                const data = progressStore.getDashboardData();
+                if (data) {
+                    registrarDiagnostico('datos-locales', `Se usaron datos de StudentProgress (${motivo})`);
+                    return data;
+                }
+            }
+
+            seUsoFallbackBase = true;
+            registrarDiagnostico('datos-locales', `Se usó la maqueta base (${motivo})`, 'warn');
+            return clonarDashboardFallback();
         }
 
         // ===================================
@@ -964,13 +1172,24 @@
         // ===================================
         // RENDERIZAR LECCIONES RECOMENDADAS
         // ===================================
-        function renderizarLeccionesRecomendadas(lecciones) {
+        function renderizarLeccionesRecomendadas(lecciones = []) {
             if (!elementos.contenidoDashboard) return;
             const existente = document.getElementById('recommended-lessons-section');
             if (existente) existente.remove();
-            if (!lecciones.length) return;
+            const lista = lecciones.length ? lecciones : obtenerFallbackLecciones();
+            if (!lista.length) {
+                registrarDiagnostico('lecciones', 'No hay lecciones para renderizar', 'warn');
+                elementos.contenidoDashboard.insertAdjacentHTML('beforeend', `
+                    <div id="recommended-lessons-section" class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mt-8 border border-dashed border-gray-300 dark:border-gray-600 text-center">
+                        <p class="text-gray-500 dark:text-gray-300">No hay recomendaciones disponibles por ahora.</p>
+                    </div>
+                `);
+                return;
+            }
 
-            const tarjetasHtml = lecciones
+            registrarDiagnostico('lecciones', `Renderizando ${lista.length} recomendaciones visibles`);
+
+            const tarjetasHtml = lista
                 .map((leccion) => `
                     <div class="bg-white dark:bg-gray-700 rounded-xl shadow-md border border-gray-200 dark:border-gray-600 p-6 hover:shadow-lg transition-all">
                         <div class="flex justify-between items-start mb-4">
@@ -1007,7 +1226,7 @@
                             Lecciones Recomendadas
                         </h2>
                         <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm">
-                            ${lecciones.length} disponibles
+                            ${lista.length} disponibles
                         </span>
                     </div>
 
@@ -1018,6 +1237,11 @@
             `;
 
             elementos.contenidoDashboard.insertAdjacentHTML('beforeend', html);
+        }
+
+        function obtenerFallbackLecciones() {
+            const data = clonarDashboardFallback();
+            return data.leccionesRecomendadas || [];
         }
 
         // ===================================
@@ -1077,6 +1301,7 @@
 
         function mostrarEstadoSinDatos(mensaje) {
             console.error('📭 Estado sin datos:', mensaje);
+            registrarDiagnostico('estado', mensaje, 'warn');
 
             mostrarSeccionPrincipal();
 
@@ -1183,10 +1408,12 @@
         // ===================================
         
         // Pre-hidratar con datos locales para que el estudiante siempre vea contenido aunque no haya API
+        registrarDiagnostico('pre-hidratacion', 'Iniciando prehidratación con datos locales o fallback');
         prehidratarDashboardLocal();
 
         // Cargar datos
         await cargarResumen();
+        registrarDiagnostico('api', 'Proceso inicial de carga completado');
 
         console.log('✅ Dashboard Estudiante listo');
     }
