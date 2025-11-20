@@ -4,6 +4,93 @@ const database = require('../config/database');
 const { generarToken, generarCodigoVerificacion } = require('../config/jwt');
 const emailService = require('../services/emailService');
 
+// ==========================================================
+// UTILIDADES DE ESTADO DE CUENTA
+// ==========================================================
+
+let columnasEstadoCuentaAseguradas = false;
+let columnasBaseUsuariosAseguradas = false;
+
+const CODIGOS_ERROR_CONEXION = new Set([
+    'ECONNREFUSED',
+    'ENOTFOUND',
+    'ER_ACCESS_DENIED_ERROR',
+    'PROTOCOL_CONNECTION_LOST',
+    'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR',
+    'PROTOCOL_ENQUEUE_AFTER_QUIT',
+    'PROTOCOL_SEQUENCE_TIMEOUT'
+]);
+
+function responderErrorConexion(res, error, contexto = 'la operación solicitada') {
+    if (error && (CODIGOS_ERROR_CONEXION.has(error.code) || /ECONNREFUSED/i.test(error.message))) {
+        console.error('🚫 Servicio de base de datos no disponible:', error.message);
+        return res.status(503).json({
+            error: 'Servicio de base de datos no disponible',
+            detalles: 'Verifica la conexión MySQL antes de intentar ' + contexto
+        });
+    }
+    return null;
+}
+
+async function asegurarColumnasBaseUsuarios() {
+    if (columnasBaseUsuariosAseguradas) return;
+
+    try {
+        // En entornos donde "ADD COLUMN IF NOT EXISTS" no está disponible (MySQL 5.7),
+        // comprobamos columna por columna antes de alterarla para evitar errores 500.
+        const verificarColumna = async (columna) => {
+            const [rows] = await database.query(
+                'SHOW COLUMNS FROM usuarios LIKE ?',
+                [columna]
+            );
+            return rows.length > 0;
+        };
+
+        const columnasAAgregar = [];
+
+        const existeCorreoVerificado = await verificarColumna('correo_verificado');
+        if (!existeCorreoVerificado) {
+            columnasAAgregar.push('ADD COLUMN correo_verificado TINYINT(1) NOT NULL DEFAULT 0');
+        }
+
+        const existeEstadoCuenta = await verificarColumna('estado_cuenta');
+        if (!existeEstadoCuenta) {
+            columnasAAgregar.push("ADD COLUMN estado_cuenta ENUM('activo','pendiente_verificacion','desactivado','bloqueado') NOT NULL DEFAULT 'pendiente_verificacion'");
+        }
+
+        const existeUltimoAcceso = await verificarColumna('ultimo_acceso');
+        if (!existeUltimoAcceso) {
+            columnasAAgregar.push('ADD COLUMN ultimo_acceso DATETIME NULL');
+        }
+
+        if (columnasAAgregar.length > 0) {
+            const alterSQL = `ALTER TABLE usuarios ${columnasAAgregar.join(', ')}`;
+            await database.query(alterSQL);
+            console.log('✅ Columnas base de usuarios aseguradas:', columnasAAgregar);
+        }
+
+        columnasBaseUsuariosAseguradas = true;
+    } catch (error) {
+        console.warn('⚠️  No se pudieron asegurar las columnas base de usuarios:', error.message);
+    }
+}
+
+async function asegurarColumnasEstadoCuenta() {
+    if (columnasEstadoCuentaAseguradas) return;
+
+    try {
+        await database.query(`
+            ALTER TABLE usuarios
+            ADD COLUMN IF NOT EXISTS fecha_desactivacion DATETIME NULL,
+            ADD COLUMN IF NOT EXISTS reactivar_hasta DATETIME NULL,
+            ADD COLUMN IF NOT EXISTS eliminacion_programada DATETIME NULL
+        `);
+        columnasEstadoCuentaAseguradas = true;
+    } catch (error) {
+        console.warn('⚠️  No se pudieron asegurar las columnas de estado de cuenta:', error.message);
+    }
+}
+
 // @desc    Registrar nuevo usuario
 // @route   POST /api/auth/registro
 // @access  Public
@@ -281,6 +368,9 @@ exports.verificarCuenta = async (req, res) => {
 // @access  Public
 exports.iniciarSesion = async (req, res) => {
     try {
+        await asegurarColumnasBaseUsuarios();
+        await asegurarColumnasEstadoCuenta();
+
         const { correo, password } = req.body;
 
         if (!correo || !password) {
@@ -291,9 +381,10 @@ exports.iniciarSesion = async (req, res) => {
 
         // Buscar usuario - CORREGIDO: usar correo_verificado en lugar de email_verificado
         const [usuarios] = await database.query(
-            `SELECT u.id, u.nombre, u.primer_apellido, u.segundo_apellido, 
+            `SELECT u.id, u.nombre, u.primer_apellido, u.segundo_apellido,
                     u.correo, u.contrasena_hash, u.rol, u.estado_cuenta,
-                    u.correo_verificado, pu.nombre_completo, pu.foto_perfil
+                    u.correo_verificado, u.fecha_desactivacion, u.reactivar_hasta, u.eliminacion_programada,
+                    pu.nombre_completo, pu.foto_perfil
              FROM usuarios u
              LEFT JOIN perfil_usuarios pu ON u.id = pu.usuario_id
              WHERE u.correo = ?`,
@@ -322,9 +413,24 @@ exports.iniciarSesion = async (req, res) => {
         }
 
         if (usuario.estado_cuenta === 'desactivado') {
-            return res.status(401).json({ 
-                error: 'Cuenta desactivada.' 
-            });
+            const ventanaReactivacionVigente = usuario.reactivar_hasta && new Date(usuario.reactivar_hasta) > new Date();
+
+            if (!ventanaReactivacionVigente) {
+                return res.status(401).json({
+                    error: 'Cuenta desactivada y fuera de ventana de reactivación.',
+                    reactivar_hasta: usuario.reactivar_hasta
+                });
+            }
+
+            console.log('♻️  Reactivando cuenta desactivada tras login exitoso');
+            await database.query(
+                `UPDATE usuarios
+                 SET estado_cuenta = 'activo', fecha_desactivacion = NULL,
+                     reactivar_hasta = NULL, eliminacion_programada = NULL
+                 WHERE id = ?`,
+                [usuario.id]
+            );
+            usuario.estado_cuenta = 'activo';
         }
 
         // Verificar contraseña
@@ -378,9 +484,11 @@ exports.iniciarSesion = async (req, res) => {
         });
 
     } catch (error) {
+        if (responderErrorConexion(res, error, 'iniciar sesión')) return;
+
         console.error('Error en login:', error);
-        res.status(500).json({ 
-            error: 'Error interno del servidor en el login' 
+        res.status(500).json({
+            error: 'Error interno del servidor en el login'
         });
     }
 };
@@ -788,6 +896,143 @@ exports.cerrarSesion = async (req, res) => {
         console.error('Error cerrando sesión:', error);
         res.status(500).json({ 
             error: 'Error interno del servidor al cerrar sesión' 
+        });
+    }
+};
+
+// @desc    Desactivar cuenta (soft-delete) con ventana de reactivación de 30 días
+// @route   POST /api/auth/desactivar-cuenta
+// @access  Private
+exports.desactivarCuenta = async (req, res) => {
+    try {
+        await asegurarColumnasBaseUsuarios();
+        await asegurarColumnasEstadoCuenta();
+
+        const usuarioId = req.user.id;
+        const [resultado] = await database.query(
+            `UPDATE usuarios
+             SET estado_cuenta = 'desactivado',
+                 fecha_desactivacion = NOW(),
+                 reactivar_hasta = DATE_ADD(NOW(), INTERVAL 30 DAY),
+                 eliminacion_programada = NULL
+             WHERE id = ?`,
+            [usuarioId]
+        );
+
+        if (resultado.affectedRows === 0) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        res.json({
+            success: true,
+            mensaje: 'Cuenta desactivada. Puedes reactivarla dentro de 30 días iniciando sesión de nuevo.',
+            reactivar_hasta: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        });
+    } catch (error) {
+        console.error('❌ Error al desactivar cuenta:', error);
+        res.status(500).json({
+            error: 'Error interno al desactivar la cuenta',
+            detalles: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+// @desc    Programar eliminación con opción de reactivar en 30 días
+// @route   DELETE /api/auth/eliminar-cuenta
+// @access  Private
+exports.eliminarCuenta = async (req, res) => {
+    try {
+        await asegurarColumnasBaseUsuarios();
+        await asegurarColumnasEstadoCuenta();
+
+        const usuarioId = req.user.id;
+        const [resultado] = await database.query(
+            `UPDATE usuarios
+             SET estado_cuenta = 'desactivado',
+                 fecha_desactivacion = NOW(),
+                 reactivar_hasta = DATE_ADD(NOW(), INTERVAL 30 DAY),
+                 eliminacion_programada = DATE_ADD(NOW(), INTERVAL 30 DAY)
+             WHERE id = ?`,
+            [usuarioId]
+        );
+
+        if (resultado.affectedRows === 0) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        res.json({
+            success: true,
+            mensaje: 'Cuenta marcada para eliminación. Puedes reactivarla dentro de 30 días iniciando sesión.',
+            reactivar_hasta: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        });
+    } catch (error) {
+        console.error('❌ Error al eliminar cuenta:', error);
+        res.status(500).json({
+            error: 'Error interno al eliminar la cuenta',
+            detalles: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+// @desc    Reactivar cuenta desactivada dentro de la ventana de 30 días
+// @route   POST /api/auth/reactivar-cuenta
+// @access  Public
+exports.reactivarCuenta = async (req, res) => {
+    try {
+        await asegurarColumnasBaseUsuarios();
+        await asegurarColumnasEstadoCuenta();
+
+        const { correo, password } = req.body;
+
+        if (!correo || !password) {
+            return res.status(400).json({ error: 'Correo y contraseña son requeridos' });
+        }
+
+        const [usuarios] = await database.query(
+            `SELECT id, contrasena_hash, estado_cuenta, reactivar_hasta
+             FROM usuarios
+             WHERE correo = ?`,
+            [correo]
+        );
+
+        if (usuarios.length === 0) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        const usuario = usuarios[0];
+
+        if (usuario.estado_cuenta !== 'desactivado') {
+            return res.status(400).json({ error: 'La cuenta no está desactivada' });
+        }
+
+        const ventanaVigente = usuario.reactivar_hasta && new Date(usuario.reactivar_hasta) > new Date();
+        if (!ventanaVigente) {
+            return res.status(400).json({ error: 'La ventana de reactivación ha expirado' });
+        }
+
+        const contrasenaValida = await bcrypt.compare(password, usuario.contrasena_hash);
+        if (!contrasenaValida) {
+            return res.status(401).json({ error: 'Credenciales inválidas' });
+        }
+
+        await database.query(
+            `UPDATE usuarios
+             SET estado_cuenta = 'activo', fecha_desactivacion = NULL,
+                 reactivar_hasta = NULL, eliminacion_programada = NULL
+             WHERE id = ?`,
+            [usuario.id]
+        );
+
+        res.json({
+            success: true,
+            mensaje: 'Cuenta reactivada correctamente. Ahora puedes iniciar sesión.',
+            usuario_id: usuario.id
+        });
+    } catch (error) {
+        console.error('❌ Error al reactivar cuenta:', error);
+        res.status(500).json({
+            error: 'Error interno al reactivar la cuenta',
+            detalles: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 };

@@ -12,12 +12,14 @@
     // ============================================
     const dependencias = [
         'APP_CONFIG',
-        'apiClient', 
+        'apiClient',
         'formValidator',
         'toastManager',
         'Utils',
         'ModuleLoader'
     ];
+
+    const progressStore = window.StudentProgress || null;
 
     const inicializado = await window.ModuleLoader.initModule({
         moduleName: 'Perfil Estudiante',
@@ -50,6 +52,7 @@
             UI: window.APP_CONFIG.UI,
             ROLES: window.APP_CONFIG.ROLES
         };
+        const endpoints = config.ENDPOINTS.AUTH;
 
         // ===================================
         // ELEMENTOS DEL DOM
@@ -57,7 +60,6 @@
         const elementos = {
             // Formularios
             personalInfoForm: document.getElementById('personal-info-form'),
-            changePasswordForm: document.getElementById('change-password-form'),
             
             // Campos de información personal
             nombreInput: document.getElementById('nombre'),
@@ -66,17 +68,12 @@
             telefonoInput: document.getElementById('telefono'),
             
             // Campos de contraseña
-            currentPasswordInput: document.getElementById('current-password'),
-            newPasswordInput: document.getElementById('new-password'),
-            confirmPasswordInput: document.getElementById('confirm-password'),
-            
             // Información académica
             idiomaDisplay: document.getElementById('idioma-display'),
             nivelDisplay: document.getElementById('nivel-display'),
-            
+
             // Botones
             savePersonalBtn: document.getElementById('save-personal-btn'),
-            changePasswordBtn: document.getElementById('change-password-btn'),
             deactivateBtn: document.getElementById('deactivate-btn'),
             deleteBtn: document.getElementById('delete-btn'),
             
@@ -110,7 +107,7 @@
         }
 
         function deshabilitarFormularios(deshabilitar = true) {
-            const botones = [elementos.savePersonalBtn, elementos.changePasswordBtn];
+            const botones = [elementos.savePersonalBtn];
             botones.forEach(btn => {
                 if (btn) btn.disabled = deshabilitar;
             });
@@ -144,9 +141,6 @@
             // Formulario de información personal
             elementos.personalInfoForm?.addEventListener('submit', manejarGuardarInformacionPersonal);
             
-            // Formulario de cambio de contraseña
-            elementos.changePasswordForm?.addEventListener('submit', manejarCambioContraseña);
-            
             // Gestión de cuenta
             elementos.deactivateBtn?.addEventListener('click', mostrarModalDesactivar);
             elementos.deleteBtn?.addEventListener('click', mostrarModalEliminar);
@@ -179,7 +173,7 @@
 
             try {
                 // ✅ USAR apiClient PARA CARGAR DATOS DEL PERFIL
-                const response = await window.apiClient.get(config.ENDPOINTS.USUARIOS.PERFIL);
+                const response = await window.apiClient.get(endpoints.PERFIL);
 
                 if (response.success) {
                     estado.datosPerfil = response.data;
@@ -218,6 +212,26 @@
             };
         }
 
+        function obtenerNombreSeparado(usuario) {
+            if (!usuario) {
+                return { nombre: '', apellidos: '' };
+            }
+            if (usuario.nombre || usuario.primer_apellido) {
+                return {
+                    nombre: usuario.nombre || '',
+                    apellidos: `${usuario.primer_apellido || ''} ${usuario.segundo_apellido || ''}`.trim()
+                };
+            }
+            const completo = (usuario.nombre_completo || '').trim();
+            if (!completo) {
+                return { nombre: '', apellidos: '' };
+            }
+            const partes = completo.split(' ');
+            const nombre = partes.shift() || '';
+            const apellidos = partes.join(' ');
+            return { nombre, apellidos };
+        }
+
         /**
          * Actualiza la interfaz con los datos del usuario
          */
@@ -227,8 +241,9 @@
             const { usuario, datos_estudiante } = estado.datosPerfil;
 
             // Información personal
-            if (elementos.nombreInput) elementos.nombreInput.value = usuario?.nombre || '';
-            if (elementos.apellidosInput) elementos.apellidosInput.value = `${usuario?.primer_apellido || ''} ${usuario?.segundo_apellido || ''}`.trim();
+            const nombresSeparados = obtenerNombreSeparado(usuario);
+            if (elementos.nombreInput) elementos.nombreInput.value = nombresSeparados.nombre;
+            if (elementos.apellidosInput) elementos.apellidosInput.value = nombresSeparados.apellidos;
             if (elementos.emailInput) elementos.emailInput.value = usuario?.correo || '';
             if (elementos.telefonoInput) elementos.telefonoInput.value = usuario?.telefono || '';
 
@@ -238,6 +253,14 @@
 
             // Foto de perfil
             actualizarFotoPerfil(usuario);
+
+            progressStore?.setProfile({
+                nombre: elementos.nombreInput?.value,
+                apellidos: elementos.apellidosInput?.value,
+                correo: elementos.emailInput?.value,
+                idioma: elementos.idiomaDisplay?.textContent,
+                nivel: elementos.nivelDisplay?.textContent
+            });
         }
 
         /**
@@ -278,15 +301,22 @@
                 };
 
                 // ✅ USAR apiClient PARA ACTUALIZAR PERFIL
-                const response = await window.apiClient.put(config.ENDPOINTS.USUARIOS.ACTUALIZAR_PERFIL, datosActualizados);
+                const response = await window.apiClient.put(endpoints.ACTUALIZAR_PERFIL, datosActualizados);
 
                 if (response.success) {
                     window.toastManager.success('Información actualizada correctamente');
-                    
+
                     // Actualizar datos locales
                     if (response.data.usuario) {
                         estado.datosPerfil.usuario = { ...estado.datosPerfil.usuario, ...response.data.usuario };
                         window.Utils.saveToStorage(config.STORAGE.USUARIO, estado.datosPerfil.usuario);
+                        progressStore?.setProfile({
+                            nombre: estado.datosPerfil.usuario.nombre,
+                            apellidos: `${estado.datosPerfil.usuario.primer_apellido || ''} ${estado.datosPerfil.usuario.segundo_apellido || ''}`.trim(),
+                            correo: estado.datosPerfil.usuario.correo,
+                            idioma: elementos.idiomaDisplay?.textContent,
+                            nivel: elementos.nivelDisplay?.textContent
+                        });
                     }
                 } else {
                     throw new Error(response.error || 'Error al actualizar la información');
@@ -301,67 +331,6 @@
                 
                 if (elementos.savePersonalBtn) {
                     elementos.savePersonalBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Guardar Cambios';
-                }
-            }
-        }
-
-        /**
-         * Maneja el cambio de contraseña
-         */
-        async function manejarCambioContraseña(e) {
-            e.preventDefault();
-            
-            if (estado.isLoading) return;
-
-            // Validaciones
-            if (elementos.newPasswordInput?.value !== elementos.confirmPasswordInput?.value) {
-                window.toastManager.error('Las contraseñas no coinciden');
-                return;
-            }
-
-            const validacionContraseña = window.formValidator.validatePassword(elementos.newPasswordInput?.value || '');
-            if (!validacionContraseña.isValid) {
-                window.toastManager.error(`La contraseña debe cumplir con: ${validacionContraseña.errors?.join(', ') || 'requisitos mínimos'}`);
-                return;
-            }
-
-            mostrarCargando(true);
-            deshabilitarFormularios(true);
-            
-            if (elementos.changePasswordBtn) {
-                elementos.changePasswordBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Cambiando...';
-            }
-
-            try {
-                const datosContraseña = {
-                    currentPassword: elementos.currentPasswordInput?.value || '',
-                    newPassword: elementos.newPasswordInput?.value || ''
-                };
-
-                // ✅ USAR apiClient PARA CAMBIAR CONTRASEÑA
-                const response = await window.apiClient.put(config.ENDPOINTS.USUARIOS.CAMBIAR_CONTRASEÑA, datosContraseña);
-
-                if (response.success) {
-                    window.toastManager.success('Contraseña actualizada correctamente');
-                    
-                    // Limpiar formulario
-                    if (elementos.currentPasswordInput) elementos.currentPasswordInput.value = '';
-                    if (elementos.newPasswordInput) elementos.newPasswordInput.value = '';
-                    if (elementos.confirmPasswordInput) elementos.confirmPasswordInput.value = '';
-                    elementos.changePasswordForm?.reset();
-                } else {
-                    throw new Error(response.error || 'Error al cambiar la contraseña');
-                }
-
-            } catch (error) {
-                console.error('💥 Error al cambiar contraseña:', error);
-                window.toastManager.error(error.message);
-            } finally {
-                mostrarCargando(false);
-                deshabilitarFormularios(false);
-                
-                if (elementos.changePasswordBtn) {
-                    elementos.changePasswordBtn.innerHTML = '<i class="fas fa-key mr-2"></i>Cambiar Contraseña';
                 }
             }
         }
@@ -392,7 +361,14 @@
                 formData.append('foto_perfil', archivo);
 
                 // ✅ USAR apiClient PARA SUBIR FOTO
-                const response = await window.apiClient.uploadFile(config.ENDPOINTS.USUARIOS.SUBIR_FOTO, formData);
+                const uploadEndpoint = config.ENDPOINTS.USUARIO?.SUBIR_FOTO || endpoints.SUBIR_FOTO;
+
+                if (!uploadEndpoint) {
+                    window.toastManager.error('No hay endpoint configurado para subir la foto de perfil.');
+                    return;
+                }
+
+                const response = await window.apiClient.uploadFile(uploadEndpoint, formData);
 
                 if (response.success) {
                     window.toastManager.success('Foto de perfil actualizada correctamente');
@@ -466,11 +442,17 @@
 
             try {
                 // ✅ USAR apiClient PARA DESACTIVAR CUENTA
-                const response = await window.apiClient.post(config.ENDPOINTS.USUARIOS.DESACTIVAR_CUENTA);
+                const response = await window.apiClient.post(endpoints.DESACTIVAR_CUENTA);
 
                 if (response.success) {
-                    window.toastManager.success('Cuenta desactivada. Tienes 30 días para reactivarla.');
-                    
+                    const limite = response.reactivar_hasta ? new Date(response.reactivar_hasta) : null;
+                    const mensaje = limite
+                        ? `Cuenta desactivada. Puedes reactivarla hasta el ${limite.toLocaleDateString()}.`
+                        : 'Cuenta desactivada. Tienes 30 días para reactivarla.';
+
+                    window.toastManager.success(mensaje);
+                    ocultarModalDesactivar();
+
                     setTimeout(() => {
                         window.Utils.clearStorage();
                         window.location.href = config.UI.RUTAS.LOGIN;
@@ -496,14 +478,20 @@
 
             try {
                 // ✅ USAR apiClient PARA ELIMINAR CUENTA
-                const response = await window.apiClient.delete(config.ENDPOINTS.USUARIOS.ELIMINAR_CUENTA);
+                const response = await window.apiClient.delete(endpoints.ELIMINAR_CUENTA);
 
                 if (response.success) {
-                    window.toastManager.success('Cuenta eliminada permanentemente');
-                    
+                    const limite = response.reactivar_hasta ? new Date(response.reactivar_hasta) : null;
+                    const mensaje = limite
+                        ? `Cuenta marcada para eliminación. Puedes revertirla iniciando sesión antes del ${limite.toLocaleDateString()}.`
+                        : 'Cuenta marcada para eliminación. Tienes 30 días para reactivarla iniciando sesión nuevamente.';
+
+                    window.toastManager.success(mensaje);
+                    ocultarModalEliminar();
+
                     setTimeout(() => {
                         window.Utils.clearStorage();
-                        window.location.href = config.UI.RUTAS.REGISTRO;
+                        window.location.href = config.UI.RUTAS.LOGIN;
                     }, 2000);
                 } else {
                     throw new Error(response.error || 'Error al eliminar la cuenta');
