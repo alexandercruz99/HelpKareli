@@ -286,7 +286,7 @@ const validacionesRestablecerPassword = [
     .notEmpty()
     .withMessage('El token es requerido'),
   
-  body('nueva_password')
+  body('nueva_contrasena')
     .isLength({ min: CONFIG.PASSWORD.MIN_LENGTH })
     .withMessage(`La contraseña debe tener al menos ${CONFIG.PASSWORD.MIN_LENGTH} caracteres`)
     .matches(CONFIG.PASSWORD.PATTERN)
@@ -332,7 +332,7 @@ router.use((req, res, next) => {
   if (req.method === 'POST' && req.body) {
     const bodyLog = { ...req.body };
     if (bodyLog.password) bodyLog.password = '***';
-    if (bodyLog.nueva_password) bodyLog.nueva_password = '***';
+    if (bodyLog.nueva_contrasena) bodyLog.nueva_contrasena = '***';
     logData.body = bodyLog;
   }
   
@@ -369,6 +369,9 @@ router.patch('/actualizar-nivel', validacionesActualizarNivel, authController.ac
 router.get('/verificar-token', authMiddleware.verificarToken, authController.verificarToken);
 router.get('/perfil', authMiddleware.verificarToken, authController.obtenerPerfil);
 router.post('/logout', authMiddleware.verificarToken, authController.cerrarSesion);
+router.post('/desactivar-cuenta', authMiddleware.verificarToken, authController.desactivarCuenta);
+router.delete('/eliminar-cuenta', authMiddleware.verificarToken, authController.eliminarCuenta);
+router.post('/reactivar-cuenta', authController.reactivarCuenta);
 
 // ==========================================================
 // RUTAS DE UTILIDAD Y DIAGNÓSTICO
